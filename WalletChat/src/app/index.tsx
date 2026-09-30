@@ -1,98 +1,104 @@
-import * as Device from 'expo-device';
-import { Platform, StyleSheet } from 'react-native';
-import { SafeAreaView } from 'react-native-safe-area-context';
-
-import { AnimatedIcon } from '@/components/animated-icon';
-import { HintRow } from '@/components/hint-row';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { WebBadge } from '@/components/web-badge';
-import { BottomTabInset, MaxContentWidth, Spacing } from '@/constants/theme';
-
-function getDevMenuHint() {
-  if (Platform.OS === 'web') {
-    return <ThemedText type="small">use browser devtools</ThemedText>;
-  }
-  if (Device.isDevice) {
-    return (
-      <ThemedText type="small">
-        shake device or press <ThemedText type="code">m</ThemedText> in terminal
-      </ThemedText>
-    );
-  }
-  const shortcut = Platform.OS === 'android' ? 'cmd+m (or ctrl+m)' : 'cmd+d';
-  return (
-    <ThemedText type="small">
-      press <ThemedText type="code">{shortcut}</ThemedText>
-    </ThemedText>
-  );
-}
+import { View, Text, StyleSheet, Pressable } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import { Bell, ArrowUpRight, ArrowDownLeft, Plus } from "lucide-react-native";
+import { colors, spacing, radius, fonts } from "@/constants/theme";
 
 export default function HomeScreen() {
   return (
-    <ThemedView style={styles.container}>
-      <SafeAreaView style={styles.safeArea}>
-        <ThemedView style={styles.heroSection}>
-          <AnimatedIcon />
-          <ThemedText type="title" style={styles.title}>
-            Welcome to&nbsp;Expo
-          </ThemedText>
-        </ThemedView>
+    <SafeAreaView style={styles.screen}>
+      {/* Header */}
+      <View style={styles.header}>
+        <View style={styles.avatar}>
+          <Text style={styles.avatarText}>SA</Text>
+        </View>
+        <View style={styles.headerText}>
+          <Text style={styles.greeting}>Good morning</Text>
+          <Text style={styles.name}>Sandra</Text>
+        </View>
+        <Pressable style={styles.iconButton} accessibilityLabel="Notifications">
+          <Bell size={20} color={colors.text} />
+        </Pressable>
+      </View>
 
-        <ThemedText type="code" style={styles.code}>
-          get started
-        </ThemedText>
+      {/* Balance card */}
+      <View style={styles.card}>
+        <Text style={styles.cardLabel}>Total balance</Text>
+        <Text style={styles.balance}>RWF 250,000</Text>
+        <Text style={styles.weekly}>+RWF 12,400 this week</Text>
 
-        <ThemedView type="backgroundElement" style={styles.stepContainer}>
-          <HintRow
-            title="Try editing"
-            hint={<ThemedText type="code">src/app/index.tsx</ThemedText>}
-          />
-          <HintRow title="Dev tools" hint={getDevMenuHint()} />
-          <HintRow
-            title="Fresh start"
-            hint={<ThemedText type="code">npm run reset-project</ThemedText>}
-          />
-        </ThemedView>
-
-        {Platform.OS === 'web' && <WebBadge />}
-      </SafeAreaView>
-    </ThemedView>
+        <View style={styles.actions}>
+          <Pressable style={[styles.actionButton, { backgroundColor: colors.accent }]}>
+            <ArrowUpRight size={18} color={colors.text} />
+            <Text style={[styles.actionText, { color: colors.text }]}>Send</Text>
+          </Pressable>
+          <Pressable style={styles.actionButton}>
+            <ArrowDownLeft size={18} color="white" />
+            <Text style={styles.actionText}>Request</Text>
+          </Pressable>
+          <Pressable style={styles.actionButton}>
+            <Plus size={18} color="white" />
+            <Text style={styles.actionText}>Top up</Text>
+          </Pressable>
+        </View>
+      </View>
+    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
-  container: {
+  screen: {
     flex: 1,
-    justifyContent: 'center',
-    flexDirection: 'row',
+    backgroundColor: colors.background,
+    paddingHorizontal: spacing.xl,
+    gap: spacing.xl,
   },
-  safeArea: {
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: spacing.md,
+    marginTop: spacing.sm,
+  },
+  avatar: {
+    width: 44,
+    height: 44,
+    borderRadius: radius.full,
+    backgroundColor: colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  avatarText: { color: "white", fontFamily: fonts.semibold, fontSize: 15 },
+  headerText: { flex: 1, gap: 2 },
+  greeting: { fontFamily: fonts.regular, fontSize: 13, color: colors.textMuted },
+  name: { fontFamily: fonts.display, fontSize: 20, color: colors.text },
+  iconButton: {
+    width: 44,
+    height: 44,
+    borderRadius: radius.full,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  card: {
+    backgroundColor: colors.primary,
+    borderRadius: radius.xl,
+    padding: spacing.xl,
+    gap: 6,
+  },
+  cardLabel: { fontFamily: fonts.regular, fontSize: 13, color: colors.onPrimaryMuted },
+  balance: { fontFamily: fonts.display, fontSize: 36, color: "white" },
+  weekly: { fontFamily: fonts.medium, fontSize: 13, color: colors.accentOnPrimary },
+  actions: { flexDirection: "row", gap: spacing.sm, marginTop: 14 },
+  actionButton: {
     flex: 1,
-    paddingHorizontal: Spacing.four,
-    alignItems: 'center',
-    gap: Spacing.three,
-    paddingBottom: BottomTabInset + Spacing.three,
-    maxWidth: MaxContentWidth,
+    height: 44,
+    borderRadius: radius.md,
+    backgroundColor: colors.primaryLight,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 6,
   },
-  heroSection: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    flex: 1,
-    paddingHorizontal: Spacing.four,
-    gap: Spacing.four,
-  },
-  title: {
-    textAlign: 'center',
-  },
-  code: {
-    textTransform: 'uppercase',
-  },
-  stepContainer: {
-    gap: Spacing.three,
-    alignSelf: 'stretch',
-    paddingHorizontal: Spacing.three,
-    paddingVertical: Spacing.four,
-    borderRadius: Spacing.four,
-  },
+  actionText: { fontFamily: fonts.semibold, fontSize: 14, color: "white" },
 });
