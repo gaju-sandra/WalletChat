@@ -6,10 +6,13 @@ import { colors, spacing, radius, fonts } from "@/constants/theme";
 import { Avatar } from "@/components/avatar";
 import { SectionHeader } from "@/components/section-header";
 import { TransactionRow } from "@/components/transaction-row";
-import { balance, contacts, transactions } from "@/data/mock";
+import { contacts } from "@/data/mock";
+import { useWallet } from "@/context/wallet";
 import { formatRWF } from "@/utils/formats";
 
 export default function HomeScreen() {
+  const { balance, transactions } = useWallet();
+
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
       <ScrollView contentContainerStyle={styles.screen} showsVerticalScrollIndicator={false}>

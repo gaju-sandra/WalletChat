@@ -1,6 +1,7 @@
 import { Stack } from "expo-router";
 import * as SplashScreen from "expo-splash-screen";
 import { useEffect } from "react";
+import { WalletProvider } from "@/context/wallet";
 import{ useFonts, BricolageGrotesque_700Bold } from 
 "@expo-google-fonts/bricolage-grotesque";
 import { DMSans_400Regular, DMSans_500Medium, 
@@ -22,9 +23,11 @@ const [fontsLoaded, fontError] = useFonts({
 
   if (!fontsLoaded && !fontError) return null;
   return (
-    <Stack screenOptions={{ headerShown: false }}>
-      <Stack.Screen name="(tabs)" />
-      <Stack.Screen name="send" />
-    </Stack>
+    <WalletProvider>
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="(tabs)" />
+        <Stack.Screen name="send" />
+      </Stack>
+    </WalletProvider>
   );
 }
