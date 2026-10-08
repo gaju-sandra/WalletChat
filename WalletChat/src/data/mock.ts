@@ -30,3 +30,22 @@ export const transactions: Transaction[] = [
   { id: "t3", title: "Bus fare", subtitle: "Transport · Yesterday", amount: -600, category: "transport" },
   { id: "t4", title: "Electricity", subtitle: "Bills · Mon", amount: -10000, category: "bills" },
 ];
+
+export type Chat = {
+  contactId: string;
+  lastMessage: string;
+  time: string;
+  unread: number;
+};
+
+export const chats: Chat[] =[
+{contactId:"1", lastMessage:"Thank for the 5k ! ", time:
+  "12:41", unread:2},
+  {contactId: "2", lastMessage: "Are we splitting lunch?", 
+    time: "10:15", unread: 0},
+   { contactId: "3", lastMessage: "Sent you the bus fare", time: "Yesterday", unread: 1 },
+  { contactId: "4", lastMessage: "See you tomorrow", 
+    time: "Mon", unread: 0 },  
+];
+
+
