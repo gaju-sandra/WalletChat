@@ -11,6 +11,7 @@ surface:"#FFFFFF",
 text:"#16181D",
 textMuted:"#5B6068",
 border:"#E3DFD6",
+divider:"#EFECE5",
 success:"#1E7A4C",
 danger:"#B42318",
 };
@@ -28,3 +29,13 @@ export const fonts ={
     medium: "DMSans_500Medium",
     semibold: "DMSans_600SemiBold",
 };
+
+export const palette = {
+  teal: { bg: "#DCEBEE", fg: "#0F4C5C" },
+  amber: { bg: "#FBE8C8", fg: "#7A4B06" },
+  indigo: { bg: "#E5E7F6", fg: "#343A80" },
+  green: { bg: "#DDEFE4", fg: "#1E5E3C" },
+  red: { bg: "#F6E1DE", fg: "#8A2D1E" },
+};
+
+export type Tone = keyof typeof palette;

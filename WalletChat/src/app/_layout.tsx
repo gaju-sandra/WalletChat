@@ -21,6 +21,10 @@ const [fontsLoaded, fontError] = useFonts({
   }, [fontsLoaded, fontError]);
 
   if (!fontsLoaded && !fontError) return null;
-  return <Stack  screenOptions={{headerShown: false}}
-  />;
+  return (
+    <Stack screenOptions={{ headerShown: false }}>
+      <Stack.Screen name="(tabs)" />
+      <Stack.Screen name="send" />
+    </Stack>
+  );
 }
