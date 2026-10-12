@@ -4,15 +4,20 @@ import { router } from "expo-router";
 import { colors, fonts, radius, spacing } from "@/constants/theme";
 import { Avatar } from "@/components/avatar";
 import { chats, contacts, type Chat } from "@/data/mock";
+import { useWallet } from "@/context/wallet";
+import { previewText } from "@/utils/messages";
 
 function Separator() {
   return <View style={styles.separator} />;
 }
 
 function ChatRow({ chat }: { chat: Chat }) {
+  const { messages } = useWallet();
   const contact = contacts.find((c) => c.id === chat.contactId);
   if (!contact) return null;
 
+  const thread = messages.filter((m) => m.contactId === contact.id);
+  const last = thread[thread.length - 1];
   const hasUnread = chat.unread > 0;
 
   return (
@@ -25,12 +30,12 @@ function ChatRow({ chat }: { chat: Chat }) {
       <View style={styles.texts}>
         <Text style={styles.name}>{contact.name}</Text>
         <Text style={[styles.message, hasUnread && styles.messageUnread]} numberOfLines={1}>
-          {chat.lastMessage}
+          {last ? previewText(last) : "Say hi 👋"}
         </Text>
       </View>
 
       <View style={styles.meta}>
-        <Text style={[styles.time, hasUnread && styles.timeUnread]}>{chat.time}</Text>
+        <Text style={[styles.time, hasUnread && styles.timeUnread]}>{last?.time ?? ""}</Text>
         {hasUnread ? (
           <View style={styles.badge}>
             <Text style={styles.badgeText}>{chat.unread}</Text>
