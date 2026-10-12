@@ -92,7 +92,7 @@ export default function HomeScreen() {
             onPressAction={() => router.push("/insights")}
           />
           <View style={styles.listCard}>
-            {transactions.map((tx, index) => (
+            {recent.map((tx, index) => (
               <TransactionRow
                 key={tx.id}
                 transaction={tx}
