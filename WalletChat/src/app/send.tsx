@@ -5,7 +5,8 @@ import { router, useLocalSearchParams } from "expo-router";
 import { ChevronLeft, Delete, Check } from "lucide-react-native";
 import { colors, fonts, radius, spacing } from "@/constants/theme";
 import { Avatar } from "@/components/avatar";
-import { balance, contacts } from "@/data/mock";
+import { contacts } from "@/data/mock";
+import { useWallet } from "@/context/wallet";
 import { formatRWF } from "@/utils/formats";
 
 const MAX_DIGITS = 9;
@@ -14,6 +15,7 @@ const keys = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "000", "0", "back"];
 
 export default function SendScreen() {
   const params = useLocalSearchParams<{ contactId?: string }>();
+  const { balance, sendMoney } = useWallet();
   const [contactId, setContactId] = useState(params.contactId);
   const [digits, setDigits] = useState("");
   const [sent, setSent] = useState(false);
@@ -22,6 +24,12 @@ export default function SendScreen() {
   const amount = Number(digits || "0");
   const exceedsBalance = amount > balance;
   const canSend = !!contact && amount > 0 && !exceedsBalance;
+
+  // Opened from a link there is no screen behind us, so fall back to Home
+  function goBack() {
+    if (router.canGoBack()) router.back();
+    else router.replace("/");
+  }
 
   function pressKey(key: string) {
     if (key === "back") {
@@ -44,7 +52,7 @@ export default function SendScreen() {
         <Text style={styles.successText}>
           {formatRWF(amount)} is on its way to {contact.name}.
         </Text>
-        <Pressable style={[styles.primaryButton, styles.successButton]} onPress={() => router.back()}>
+        <Pressable style={[styles.primaryButton, styles.successButton]} onPress={goBack}>
           <Text style={styles.primaryButtonText}>Done</Text>
         </Pressable>
       </SafeAreaView>
@@ -54,7 +62,7 @@ export default function SendScreen() {
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
-        <Pressable onPress={() => router.back()} style={styles.backButton} accessibilityLabel="Go back">
+        <Pressable onPress={goBack} style={styles.backButton} accessibilityLabel="Go back">
           <ChevronLeft size={20} color={colors.text} />
         </Pressable>
         <Text style={styles.title}>Send money</Text>
@@ -125,7 +133,11 @@ export default function SendScreen() {
       <Pressable
         style={[styles.primaryButton, !canSend && styles.primaryButtonDisabled]}
         disabled={!canSend}
-        onPress={() => setSent(true)}
+        onPress={() => {
+          if (!contact) return;
+          sendMoney(contact.id, amount);
+          setSent(true);
+        }}
       >
         <Text style={styles.primaryButtonText}>
           {contact && amount > 0 ? `Send ${formatRWF(amount)}` : "Send"}
