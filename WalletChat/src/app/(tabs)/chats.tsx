@@ -18,7 +18,7 @@ function ChatRow({ chat }: { chat: Chat }) {
   return (
     <Pressable
       style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
-      onPress={() => router.push({ pathname: "/send", params: { contactId: contact.id } })}
+      onPress={() => router.push({ pathname: "/chat/[id]", params: { id: contact.id } })}
     >
       <Avatar initials={contact.initials} tone={contact.tone} size={48} />
 

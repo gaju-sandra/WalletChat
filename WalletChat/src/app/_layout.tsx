@@ -27,6 +27,7 @@ const [fontsLoaded, fontError] = useFonts({
       <Stack screenOptions={{ headerShown: false }}>
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="send" />
+        <Stack.Screen name="chat/[id]" />
       </Stack>
     </WalletProvider>
   );
