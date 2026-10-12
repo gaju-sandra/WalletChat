@@ -1,16 +1,10 @@
 import { View, Text, StyleSheet } from "react-native";
-import { ArrowUpRight, ArrowDownLeft, Bus, Zap, ShoppingCart, type LucideIcon } from "lucide-react-native";
-import { colors, fonts, palette, radius, spacing, type Tone } from "@/constants/theme";
+import { colors, fonts, palette, radius, spacing} from "@/constants/theme";
 import type { Transaction } from "@/data/mock";
 import { formatRWF } from "@/utils/formats";
+import { categoryInfo } from "@/constants/categories";
 
-const categoryStyle: Record<Transaction["category"], { icon: LucideIcon; tone: Tone }> = {
-  transfer: { icon: ArrowUpRight, tone: "amber" },
-  income: { icon: ArrowDownLeft, tone: "green" },
-  transport: { icon: Bus, tone: "teal" },
-  bills: { icon: Zap, tone: "indigo" },
-  shopping: { icon: ShoppingCart, tone: "red" },
-};
+
 
 type TransactionRowProps = {
   transaction: Transaction;
@@ -18,7 +12,7 @@ type TransactionRowProps = {
 };
 
 export function TransactionRow({ transaction, isLast = false }: TransactionRowProps) {
-  const { icon: Icon, tone } = categoryStyle[transaction.category];
+  const { icon: Icon, tone } = categoryInfo[transaction.category];
   const isIncome = transaction.amount > 0;
 
   return (

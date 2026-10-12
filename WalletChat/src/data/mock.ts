@@ -7,12 +7,21 @@ export type Contact = {
   tone: Tone;
 };
 
+// Makes a date "N days ago" so the fake data always looks recent
+function daysAgo(days: number, hour = 12) {
+  const date = new Date();
+  date.setDate(date.getDate() - days);
+  date.setHours(hour, 0, 0, 0);
+  return date.toISOString();
+}
+
 export type Transaction = {
   id: string;
   title: string;
   subtitle: string;
   amount: number; // negative = money out, positive = money in
   category: "transfer" | "income" | "transport" | "bills" | "shopping";
+  date: string; // ISO date, e.g. "2026-10-12T10:00:00.000Z"
 };
 
 export const balance = 250000;
@@ -25,10 +34,14 @@ export const contacts: Contact[] = [
 ];
 
 export const transactions: Transaction[] = [
-  { id: "t1", title: "Aline M.", subtitle: "Sent in chat · 12:40", amount: -5000, category: "transfer" },
-  { id: "t2", title: "Salary", subtitle: "Income · 08:00", amount: 180000, category: "income" },
-  { id: "t3", title: "Bus fare", subtitle: "Transport · Yesterday", amount: -600, category: "transport" },
-  { id: "t4", title: "Electricity", subtitle: "Bills · Mon", amount: -10000, category: "bills" },
+  { id: "t1", title: "Aline M.", subtitle: "Sent in chat · 12:40", amount: -5000, category: "transfer", date: daysAgo(0, 12) },
+  { id: "t2", title: "Salary", subtitle: "Income · 08:00", amount: 180000, category: "income", date: daysAgo(0, 8) },
+  { id: "t3", title: "Bus fare", subtitle: "Transport · Yesterday", amount: -600, category: "transport", date: daysAgo(1) },
+  { id: "t4", title: "Electricity", subtitle: "Bills", amount: -10000, category: "bills", date: daysAgo(2) },
+  { id: "t5", title: "Groceries", subtitle: "Shopping", amount: -8500, category: "shopping", date: daysAgo(3) },
+  { id: "t6", title: "Moto", subtitle: "Transport", amount: -1500, category: "transport", date: daysAgo(4) },
+  { id: "t7", title: "Eric N.", subtitle: "Sent in chat", amount: -3000, category: "transfer", date: daysAgo(5) },
+  { id: "t8", title: "Internet", subtitle: "Bills", amount: -15000, category: "bills", date: daysAgo(6) },
 ];
 
 export type Chat = {

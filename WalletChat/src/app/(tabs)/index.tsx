@@ -12,6 +12,7 @@ import { formatRWF } from "@/utils/formats";
 
 export default function HomeScreen() {
   const { balance, transactions } = useWallet();
+  const recent = transactions.slice(0, 5);
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
@@ -95,7 +96,7 @@ export default function HomeScreen() {
               <TransactionRow
                 key={tx.id}
                 transaction={tx}
-                isLast={index === transactions.length - 1}
+                isLast={index === recent.length - 1}
               />
             ))}
           </View>

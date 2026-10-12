@@ -39,6 +39,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         subtitle: `Sent in chat · ${time}`,
         amount: -amount, // negative = money out
         category: "transfer",
+        date: now.toISOString(),
       },
       ...prev, // newest first
     ]);
