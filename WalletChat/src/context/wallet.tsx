@@ -3,11 +3,15 @@ import {
   balance as initialBalance,
   contacts,
   messages as initialMessages,
+  profile as initialProfile,
   transactions as initialTransactions,
   type Message,
   type Transaction,
+  type Profile, 
+  
 } from "@/data/mock";
 import { formatTime } from "@/utils/formats";
+
 
 type WalletContextValue = {
   balance: number;
@@ -15,6 +19,12 @@ type WalletContextValue = {
   messages: Message[];
   sendMoney: (contactId: string, amount: number) => void;
   sendMessage: (contactId: string, text: string) => void;
+  profile: Profile;
+  updateName: (name: string) => void;
+  monthlyBudget: number;
+  setMonthlyBudget: (amount: number) => void;
+  hideBalance: boolean;
+  setHideBalance: (hide: boolean) => void;
 };
 
 const WalletContext = createContext<WalletContextValue | null>(null);
@@ -23,6 +33,16 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   const [balance, setBalance] = useState(initialBalance);
   const [transactions, setTransactions] = useState<Transaction[]>(initialTransactions);
   const [messages, setMessages] = useState<Message[]>(initialMessages);
+  const [profile, setProfile] = useState<Profile>(initialProfile);
+  const [monthlyBudget, setMonthlyBudget] = useState(150000);
+  const [hideBalance, setHideBalance] = useState(false);
+
+
+  function updateName(name: string) {
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    setProfile((prev) => ({ ...prev, name: trimmed }));
+  }
 
   function sendMoney(contactId: string, amount: number) {
     const contact = contacts.find((c) => c.id === contactId);
@@ -39,6 +59,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         subtitle: `Sent in chat · ${time}`,
         amount: -amount, // negative = money out
         category: "transfer",
+        date: now.toISOString(),
       },
       ...prev, // newest first
     ]);
@@ -47,7 +68,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       { id: `m${now.getTime()}`, contactId, fromMe: true, time, kind: "payment", amount },
     ]);
   }
-
+   
   function sendMessage(contactId: string, text: string) {
     const trimmed = text.trim();
     if (!trimmed) return; // don't send empty messages
@@ -60,7 +81,14 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   }
 
   return (
-    <WalletContext.Provider value={{ balance, transactions, messages, sendMoney, sendMessage }}>
+    <WalletContext.Provider value={{ balance, transactions, messages, 
+    sendMoney, sendMessage,profile,
+        updateName,
+        monthlyBudget,
+        setMonthlyBudget,
+        hideBalance,
+        setHideBalance,
+      }}>
       {children}
     </WalletContext.Provider>
   );
