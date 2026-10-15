@@ -6,7 +6,6 @@ import { WeeklyChart } from "@/components/weekly-charts";
 import { CategoryBar } from "@/components/category-bar";
 import { formatRWF } from "@/utils/formats";
 import {
-  MONTHLY_BUDGET,
   lastSevenDays,
   monthLabel,
   spendingByCategory,
@@ -15,14 +14,14 @@ import {
 } from "@/utils/insights";
 
 export default function InsightsScreen() {
-  const { transactions } = useWallet();
+  const { transactions, monthlyBudget} = useWallet();
 
   const monthTransactions = transactionsThisMonth(transactions);
   const { spent, received } = totals(monthTransactions);
   const week = lastSevenDays(transactions);
   const categories = spendingByCategory(monthTransactions);
-  const budgetPercent = Math.round((spent / MONTHLY_BUDGET) * 100);
-  const overBudget = spent > MONTHLY_BUDGET;
+  const budgetPercent = Math.round((spent / monthlyBudget) * 100);
+  const overBudget = spent > monthlyBudget;
 
   let budgetMessage = "";
   if (overBudget) budgetMessage = " — over budget!";
@@ -83,7 +82,7 @@ export default function InsightsScreen() {
             />
           </View>
           <Text style={styles.budgetText}>
-            {formatRWF(spent)} of {formatRWF(MONTHLY_BUDGET)}
+            {formatRWF(spent)} of {formatRWF(monthlyBudget)}
             {budgetMessage}
           </Text>
         </View>

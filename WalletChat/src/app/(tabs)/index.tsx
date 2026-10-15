@@ -8,10 +8,10 @@ import { SectionHeader } from "@/components/section-header";
 import { TransactionRow } from "@/components/transaction-row";
 import { contacts } from "@/data/mock";
 import { useWallet } from "@/context/wallet";
-import { formatRWF } from "@/utils/formats";
+import { formatRWF, initialsOf } from "@/utils/formats";
 
 export default function HomeScreen() {
-  const { balance, transactions } = useWallet();
+  const { balance, transactions, profile, hideBalance } = useWallet();
   const recent = transactions.slice(0, 5);
 
   return (
@@ -20,11 +20,11 @@ export default function HomeScreen() {
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.avatar}>
-            <Text style={styles.avatarText}>SA</Text>
+            <Text style={styles.avatarText}>{initialsOf(profile.name)}</Text>
           </View>
           <View style={styles.headerText}>
-            <Text style={styles.greeting}>Good morning</Text>
-            <Text style={styles.name}>Sandra</Text>
+            <Text style={styles.greeting}>Welcome to</Text>
+            <Text style={styles.name}>WalletChat</Text>
           </View>
           <Pressable style={styles.iconButton} accessibilityLabel="Notifications">
             <Bell size={20} color={colors.text} />
@@ -34,7 +34,7 @@ export default function HomeScreen() {
         {/* Balance card */}
         <View style={styles.card}>
           <Text style={styles.cardLabel}>Total balance</Text>
-          <Text style={styles.balance}>{formatRWF(balance)}</Text>
+          <Text style={styles.balance}>{hideBalance ? "RWF ......" :formatRWF(balance)}</Text>
           <Text style={styles.weekly}>+RWF 12,400 this week</Text>
 
           <View style={styles.actions}>
@@ -57,9 +57,15 @@ export default function HomeScreen() {
         </View>
 
         {/* Quick send */}
+                {/* Quick send */}
         <View style={styles.section}>
           <SectionHeader title="Quick send" actionLabel="See all" onPressAction={() => router.push("/chats")} />
-          <View style={styles.quickRow}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={styles.quickScroll}
+            contentContainerStyle={styles.quickRow}
+          >
             <Pressable
               style={styles.quickItem}
               accessibilityLabel="New transfer"
@@ -81,7 +87,7 @@ export default function HomeScreen() {
                 <Text style={styles.quickName}>{contact.name}</Text>
               </Pressable>
             ))}
-          </View>
+          </ScrollView>
         </View>
 
         {/* Recent activity */}
@@ -163,7 +169,8 @@ const styles = StyleSheet.create({
   },
   actionText: { fontFamily: fonts.semibold, fontSize: 14, color: "white" },
   section: { gap: spacing.md },
-  quickRow: { flexDirection: "row", gap: 14 },
+  quickScroll: { marginHorizontal: -spacing.xl },
+  quickRow: { gap: 14, paddingHorizontal: spacing.xl },
   quickItem: { width: 56, alignItems: "center", gap: 6 },
   quickName: { fontFamily: fonts.regular, fontSize: 12, color: colors.text },
   newCircle: {

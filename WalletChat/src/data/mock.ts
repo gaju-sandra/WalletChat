@@ -77,3 +77,15 @@ export type Message =
   { id: "m7", contactId: "3", fromMe: false, time: "Yesterday", kind: "text", text: "Sent you the bus fare" },
   { id: "m8", contactId: "4", fromMe: true, time: "Mon", kind: "text", text: "See you tomorrow" },
 ];
+
+export type Profile = {
+  name: string;
+  email: string;
+  phone: string;
+};
+
+export const profile: Profile = {
+  name: "Sandra Gaju",
+  email: "sandra@example.com",
+  phone: "+250 788 000 000",
+};

@@ -2,7 +2,7 @@ import type { Transaction } from "@/data/mock";
 
 export type SpendingCategory = Exclude<Transaction["category"], "income">;
 
-export const MONTHLY_BUDGET = 150000;
+
 
 const DAY_NAMES = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 const MONTH_NAMES = [
