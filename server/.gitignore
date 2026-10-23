@@ -1,0 +1,4 @@
+node_modules/
+
+# Holds the database password
+.env
