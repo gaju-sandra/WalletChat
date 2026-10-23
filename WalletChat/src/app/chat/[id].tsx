@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -15,18 +15,23 @@ import { ChevronLeft, Send, Wallet } from "lucide-react-native";
 import { colors, fonts, radius, spacing } from "@/constants/theme";
 import { Avatar } from "@/components/avatar";
 import { MessageBubble } from "@/components/message-bubble";
-import { contacts, type Message } from "@/data/mock";
+import type { Message } from "@/data/mock";
 import { useWallet } from "@/context/wallet";
 
 export default function ChatScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { messages, sendMessage } = useWallet();
+  const { contacts, messages, sendMessage, markRead } = useWallet();
   const [draft, setDraft] = useState("");
   const listRef = useRef<FlatList<Message>>(null);
 
   const contact = contacts.find((c) => c.id === id);
   const thread = messages.filter((m) => m.contactId === id);
   const canSend = draft.trim().length > 0;
+
+  // Opening the chat means you have read it
+  useEffect(() => {
+    if (id) markRead(id);
+  }, [id, markRead]);
 
   function goBack() {
     if (router.canGoBack()) router.back();

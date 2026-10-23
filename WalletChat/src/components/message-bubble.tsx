@@ -1,8 +1,9 @@
-import { View, Text, StyleSheet } from "react-native";
-import { ArrowUpRight, ArrowDownLeft } from "lucide-react-native";
+import { View, Text, StyleSheet, Pressable } from "react-native";
+import { router } from "expo-router";
+import { ArrowUpRight, ArrowDownLeft, HandCoins } from "lucide-react-native";
 import { colors, fonts, radius, spacing } from "@/constants/theme";
 import type { Message } from "@/data/mock";
-import { formatRWF } from "@/utils/formats";
+import { formatRWF, messageTime } from "@/utils/formats";
 
 export function MessageBubble({ message }: { message: Message }) {
   const mine = message.fromMe;
@@ -18,7 +19,35 @@ export function MessageBubble({ message }: { message: Message }) {
           <Text style={styles.paymentLabel}>{mine ? "You sent" : "You received"}</Text>
         </View>
         <Text style={styles.paymentAmount}>{formatRWF(message.amount)}</Text>
-        <Text style={styles.time}>{message.time}</Text>
+        <Text style={styles.time}>{messageTime(new Date(message.sentAt))}</Text>
+      </View>
+    );
+  }
+
+  if (message.kind === "request") {
+    return (
+      <View style={[styles.payment, styles.request, mine ? styles.right : styles.left]}>
+        <View style={styles.paymentHeader}>
+          <View style={[styles.paymentIcon, styles.requestIcon]}>
+            <HandCoins size={16} color={colors.primary} />
+          </View>
+          <Text style={styles.paymentLabel}>{mine ? "You requested" : "Requested from you"}</Text>
+        </View>
+        <Text style={styles.paymentAmount}>{formatRWF(message.amount)}</Text>
+        {!mine ? (
+          <Pressable
+            style={styles.payButton}
+            onPress={() =>
+              router.push({
+                pathname: "/send",
+                params: { contactId: message.contactId, amount: String(message.amount) },
+              })
+            }
+          >
+            <Text style={styles.payText}>Pay</Text>
+          </Pressable>
+        ) : null}
+        <Text style={styles.time}>{messageTime(new Date(message.sentAt))}</Text>
       </View>
     );
   }
@@ -26,7 +55,7 @@ export function MessageBubble({ message }: { message: Message }) {
   return (
     <View style={[styles.bubble, mine ? styles.mine : styles.theirs]}>
       <Text style={[styles.text, mine && styles.textMine]}>{message.text}</Text>
-      <Text style={[styles.time, mine && styles.timeMine]}>{message.time}</Text>
+      <Text style={[styles.time, mine && styles.timeMine]}>{messageTime(new Date(message.sentAt))}</Text>
     </View>
   );
 }
@@ -67,4 +96,15 @@ const styles = StyleSheet.create({
   },
   paymentLabel: { fontFamily: fonts.semibold, fontSize: 13, color: colors.textMuted },
   paymentAmount: { fontFamily: fonts.display, fontSize: 24, color: colors.text },
+  request: { borderColor: colors.primary, borderStyle: "dashed" },
+  requestIcon: { backgroundColor: colors.primarySoft },
+  payButton: {
+    height: 36,
+    marginTop: spacing.xs,
+    borderRadius: radius.md,
+    backgroundColor: colors.primary,
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  payText: { fontFamily: fonts.semibold, fontSize: 14, color: "white" },
 });
