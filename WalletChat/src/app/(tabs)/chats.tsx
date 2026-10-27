@@ -31,6 +31,7 @@ function ChatRow({ contact }: { contact: Contact }) {
 
       <View style={styles.texts}>
         <Text style={styles.name}>{contact.name}</Text>
+        {!contact.onWalletChat ? <Text style={styles.notOnApp}>Not on WalletChat yet</Text> : null}
         <Text style={[styles.message, hasUnread && styles.messageUnread]} numberOfLines={1}>
           {last ? previewText(last) : "Say hi 👋"}
         </Text>
@@ -127,6 +128,7 @@ const styles = StyleSheet.create({
   rowPressed: { opacity: 0.6 },
   texts: { flex: 1, gap: 2 },
   name: { fontFamily: fonts.semibold, fontSize: 15, color: colors.text },
+  notOnApp: { fontFamily: fonts.medium, fontSize: 12, color: colors.textMuted },
   message: { fontFamily: fonts.regular, fontSize: 13, color: colors.textMuted },
   messageUnread: { fontFamily: fonts.medium, color: colors.text },
   meta: { alignItems: "flex-end", gap: 6 },

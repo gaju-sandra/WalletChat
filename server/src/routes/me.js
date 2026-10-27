@@ -85,6 +85,7 @@ meRouter.patch("/", async (req, res) => {
 meRouter.get("/contacts", async (req, res) => {
   const { rows } = await pool.query(
     `SELECT u.id, u.name, u.phone, c.unread, c.added_at,
+            u.clerk_user_id IS NOT NULL AS on_walletchat, -- true = they have an account and can use money
             -- latest of "when added" and "newest message either way"; GREATEST skips NULLs
             GREATEST(c.added_at, MAX(m.sent_at)) AS last_activity
        FROM contacts c
@@ -119,7 +120,7 @@ meRouter.post("/contacts", async (req, res) => {
     const { rows: people } = await client.query(
       `INSERT INTO users (name, phone) VALUES ($1, $2)
        ON CONFLICT (phone) DO UPDATE SET phone = EXCLUDED.phone
-       RETURNING id, name, phone`,
+       RETURNING id, name, phone, clerk_user_id IS NOT NULL AS on_walletchat`,
       [name, phone],
     );
     const person = people[0];

@@ -82,7 +82,9 @@ export default function HomeScreen() {
               <Text style={styles.quickName}>New</Text>
             </Pressable>
 
-            {contacts.map((contact) => (
+            {contacts
+              .filter((contact) => contact.onWalletChat) // money only goes to people with an account
+              .map((contact) => (
               <Pressable
                 key={contact.id}
                 style={styles.quickItem}

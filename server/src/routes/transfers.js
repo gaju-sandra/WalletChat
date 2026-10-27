@@ -25,7 +25,7 @@ transfersRouter.post("/", async (req, res) => {
     // FOR UPDATE locks both rows until COMMIT, so two transfers at the same moment can't both spend the
     // same money. Locking in id order (ORDER BY id) stops two transfers waiting on each other forever.
     const { rows: people } = await client.query(
-      "SELECT id, name, balance FROM users WHERE id = ANY($1) ORDER BY id FOR UPDATE",
+      "SELECT id, name, balance, clerk_user_id FROM users WHERE id = ANY($1) ORDER BY id FOR UPDATE",
       [[fromUserId, toUserId]],
     );
     const sender = people.find((p) => p.id === fromUserId);
@@ -34,6 +34,15 @@ transfersRouter.post("/", async (req, res) => {
     if (!sender || !receiver) {
       await client.query("ROLLBACK");
       return res.status(404).json({ error: "Sender or receiver not found" });
+    }
+    // Someone added as a contact but not signed up yet has no account: nobody could use money sent there.
+    // Messages can still wait for them, but money only goes to people on WalletChat.
+    if (!receiver.clerk_user_id) {
+      await client.query("ROLLBACK");
+      return res.status(400).json({
+        error: `${receiver.name} isn't on WalletChat yet. You can send money once they create an account.`,
+        code: "not_on_walletchat",
+      });
     }
     if (sender.balance < amount) {
       await client.query("ROLLBACK");

@@ -9,6 +9,7 @@ export type Contact = {
   tone: Tone;
   phone?: string;
   addedAt?: string; // ISO date, set when you add someone (so a new chat can go to the top)
+  onWalletChat: boolean; // false = saved by phone number but no account yet, so money can't be sent to them
 };
 
 export type Transaction = {

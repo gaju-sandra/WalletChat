@@ -17,7 +17,14 @@ type ServerUser = {
   monthly_budget: number;
   hide_balance: boolean;
 };
-type ServerContact = { id: number; name: string; phone: string; unread: number; added_at: string };
+type ServerContact = {
+  id: number;
+  name: string;
+  phone: string;
+  unread: number;
+  added_at: string;
+  on_walletchat: boolean;
+};
 type ServerMessage = {
   id: number;
   sender_id: number;
@@ -41,6 +48,7 @@ function toContact(c: ServerContact): Contact {
     tone: tones[(c.id + 3) % tones.length], // same colour for the same person every time
     phone: c.phone,
     addedAt: c.added_at,
+    onWalletChat: c.on_walletchat,
   };
 }
 

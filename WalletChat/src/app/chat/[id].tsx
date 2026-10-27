@@ -69,6 +69,14 @@ export default function ChatScreen() {
         <Text style={styles.name}>{contact.name}</Text>
       </View>
 
+      {!contact.onWalletChat ? (
+        <View style={styles.notice}>
+          <Text style={styles.noticeText}>
+            {`${contact.name} isn't on WalletChat yet. Your messages will wait for them, and you can send money once they create an account with ${contact.phone}.`}
+          </Text>
+        </View>
+      ) : null}
+
       <KeyboardAvoidingView style={styles.flex} behavior={Platform.OS === "ios" ? "padding" : undefined}>
         <FlatList
           ref={listRef}
@@ -81,7 +89,8 @@ export default function ChatScreen() {
 
         <View style={styles.composer}>
           <Pressable
-            style={styles.payButton}
+            style={[styles.payButton, !contact.onWalletChat && styles.sendDisabled]}
+            disabled={!contact.onWalletChat} // no account = nowhere for the money to go
             accessibilityLabel={`Send money to ${contact.name}`}
             onPress={() => router.push({ pathname: "/send", params: { contactId: contact.id } })}
           >
@@ -127,6 +136,14 @@ const styles = StyleSheet.create({
   },
   backButton: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
   name: { fontFamily: fonts.semibold, fontSize: 16, color: colors.text },
+  notice: {
+    paddingHorizontal: spacing.lg,
+    paddingVertical: spacing.sm,
+    backgroundColor: colors.surface,
+    borderBottomWidth: 1,
+    borderBottomColor: colors.border,
+  },
+  noticeText: { fontFamily: fonts.regular, fontSize: 13, color: colors.textMuted, textAlign: "center" },
   list: { padding: spacing.lg, gap: 10 },
   composer: {
     flexDirection: "row",

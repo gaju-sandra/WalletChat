@@ -26,7 +26,8 @@ export default function SendScreen() {
   const contact = contacts.find((c) => c.id === contactId);
   const amount = Number(digits || "0");
   const exceedsBalance = amount > balance;
-  const canSend = !!contact && amount > 0 && !exceedsBalance && !busy;
+  const notOnWalletChat = !!contact && !contact.onWalletChat; // e.g. opened from their chat
+  const canSend = !!contact && !notOnWalletChat && amount > 0 && !exceedsBalance && !busy;
 
   async function handleSend() {
     if (!contact) return;
@@ -59,6 +60,7 @@ export default function SendScreen() {
         prompt="Choose who to send money to"
         contactId={contactId}
         onChange={setContactId}
+        onlyOnWalletChat
       />
 
       <AmountPad
@@ -68,7 +70,9 @@ export default function SendScreen() {
         hint={exceedsBalance ? "Not enough balance" : `Available ${formatRWF(balance)}`}
       />
 
-      <FormError message={error} />
+      <FormError
+        message={notOnWalletChat ? `${contact.name} isn't on WalletChat yet. You can send money once they create an account.` : error}
+      />
 
       <PrimaryButton
         label={busy ? "Sending…" : contact && amount > 0 ? `Send ${formatRWF(amount)}` : "Send"}
