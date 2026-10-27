@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { router } from "expo-router";
 import { useSignIn } from "@clerk/expo";
 import { PrimaryButton } from "@/components/primary-button";
@@ -14,10 +14,15 @@ export default function SignInScreen() {
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
+  // Stops a second submit while one is still running (e.g. iPhone autofills the code AND you tap the button).
+  // A ref changes instantly, unlike state, which only updates on the next render.
+  const submitting = useRef(false);
 
   async function handleSignIn() {
     if (!email.trim() || !password) return setError("Enter your email and password.");
+    if (submitting.current) return;
 
+    submitting.current = true;
     setBusy(true);
     setError("");
     try {
@@ -32,6 +37,7 @@ export default function SignInScreen() {
         setError(`Couldn't finish signing in (${signIn.status}).`);
       }
     } finally {
+      submitting.current = false;
       setBusy(false);
     }
   }

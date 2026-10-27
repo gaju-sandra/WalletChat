@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { View, Text, Pressable } from "react-native";
 import { router } from "expo-router";
 import { useSignUp } from "@clerk/expo";
@@ -32,6 +32,9 @@ export default function SignUpScreen() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
+  // Stops a second submit while one is still running (e.g. iPhone autofills the code AND you tap the button).
+  // A ref changes instantly, unlike state, which only updates on the next render.
+  const submitting = useRef(false);
 
   // Step 1: create the Clerk account and email a code
   async function handleCreate() {
@@ -39,7 +42,9 @@ export default function SignUpScreen() {
     if (!isValidPhone(phone)) return setError("Enter your phone number, e.g. 0788 123 456.");
     if (!email.trim()) return setError("Enter your email.");
     if (password.length < MIN_PASSWORD) return setError(`Your password needs at least ${MIN_PASSWORD} characters.`);
+    if (submitting.current) return;
 
+    submitting.current = true;
     setBusy(true);
     setError("");
     try {
@@ -57,6 +62,7 @@ export default function SignUpScreen() {
 
       setStep("code");
     } finally {
+      submitting.current = false;
       setBusy(false);
     }
   }
@@ -64,7 +70,9 @@ export default function SignUpScreen() {
   // Step 2: check the emailed code. When it's right, the account is complete and you are signed in.
   async function handleVerify() {
     if (code.trim().length < 6) return setError("Enter the 6-digit code.");
+    if (submitting.current) return;
 
+    submitting.current = true;
     setBusy(true);
     setError("");
     try {
@@ -77,6 +85,7 @@ export default function SignUpScreen() {
         setError(`Couldn't finish creating your account. Clerk still needs: ${signUp.missingFields.join(", ")}.`);
       }
     } finally {
+      submitting.current = false;
       setBusy(false);
     }
   }

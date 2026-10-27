@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 import { View, Text, StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Wallet } from "lucide-react-native";
@@ -24,10 +24,15 @@ export function ProfileSetup({ initialName = "", initialPhone = "", initialError
   const [phone, setPhone] = useState(initialPhone);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState(initialError);
+  // Stops a second submit while one is still running (e.g. iPhone autofills the code AND you tap the button).
+  // A ref changes instantly, unlike state, which only updates on the next render.
+  const submitting = useRef(false);
 
   async function handleCreate() {
     if (!name.trim()) return setError("Enter your name.");
     if (!phone.trim()) return setError("Enter your phone number.");
+    if (submitting.current) return;
+    submitting.current = true;
     setBusy(true);
     setError("");
     try {
@@ -36,6 +41,7 @@ export function ProfileSetup({ initialName = "", initialPhone = "", initialError
     } catch (error) {
       setError(error instanceof Error ? error.message : String(error));
     } finally {
+      submitting.current = false;
       setBusy(false);
     }
   }
