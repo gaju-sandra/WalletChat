@@ -2,6 +2,8 @@ import express from "express";
 import { pool } from "./db.js";
 import { usersRouter } from "./routes/users.js";
 import { transfersRouter } from "./routes/transfers.js";
+import { messagesRouter } from "./routes/messages.js";
+import { topUpsRouter } from "./routes/top-ups.js";
 
 const app = express();
 
@@ -28,6 +30,8 @@ app.get("/health", async (req, res) => {
 
 app.use("/users", usersRouter);
 app.use("/transfers", transfersRouter);
+app.use("/messages", messagesRouter);
+app.use("/top-ups", topUpsRouter);
 
 app.use((req, res) => res.status(404).json({ error: `No route for ${req.method} ${req.path}` }));
 

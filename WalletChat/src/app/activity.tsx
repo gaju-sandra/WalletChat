@@ -5,7 +5,7 @@ import { colors, fonts, radius, spacing } from "@/constants/theme";
 import { ScreenHeader } from "@/components/screen-header";
 import { TransactionRow } from "@/components/transaction-row";
 import { useWallet } from "@/context/wallet";
-import type { Transaction } from "@/data/mock";
+import type { Transaction } from "@/types/wallet";
 import { dayLabel } from "@/utils/formats";
 
 type Filter = "all" | "in" | "out";

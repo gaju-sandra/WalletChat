@@ -1,10 +1,11 @@
-import { View, Text, StyleSheet, Pressable, FlatList } from "react-native";
+import { useState } from "react";
+import { View, Text, StyleSheet, Pressable, FlatList, RefreshControl } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { UserPlus } from "lucide-react-native";
 import { colors, fonts, radius, spacing } from "@/constants/theme";
 import { Avatar } from "@/components/avatar";
-import type { Contact } from "@/data/mock";
+import type { Contact } from "@/types/wallet";
 import { useWallet } from "@/context/wallet";
 import { lastActivity, previewText } from "@/utils/messages";
 import { messageTime } from "@/utils/formats";
@@ -48,11 +49,24 @@ function ChatRow({ contact }: { contact: Contact }) {
 }
 
 export default function ChatsScreen() {
-  const { contacts, messages } = useWallet();
+  const { contacts, messages, reload } = useWallet();
+  const [refreshing, setRefreshing] = useState(false); // true while the spinner shows
 
   // Most recent conversation first. [...contacts] makes a copy, because .sort() changes the array it is
   // called on, and we must never change state directly
   const sorted = [...contacts].sort((a, b) => lastActivity(b, messages).localeCompare(lastActivity(a, messages)));
+
+  // Pull down on the list → ask the server for the newest chats and messages
+  async function handlePullToRefresh() {
+    setRefreshing(true);
+    try {
+      await reload();
+    } catch {
+      // keep showing what we already have; the spinner just stops
+    } finally {
+      setRefreshing(false);
+    }
+  }
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
@@ -73,6 +87,17 @@ export default function ChatsScreen() {
         ItemSeparatorComponent={Separator}
         contentContainerStyle={styles.list}
         showsVerticalScrollIndicator={false}
+        // The list scrolls by itself once there are more chats than fit on the screen.
+        // This adds "pull to refresh": drag down, a spinner shows, and the newest data loads
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={handlePullToRefresh}
+            tintColor={colors.primary} // spinner colour on iPhone
+            colors={[colors.primary]} // spinner colour on Android
+          />
+        }
+        alwaysBounceVertical // let the list be dragged even when every chat fits on screen (iPhone)
       />
     </SafeAreaView>
   );

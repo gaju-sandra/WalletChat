@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import type { Contact, Message, Profile, Transaction } from "@/data/mock";
+import type { Contact, Message, Profile, Transaction } from "@/types/wallet";
 import {
   createContact,
   fetchWallet,
@@ -27,6 +27,7 @@ type WalletContextValue = {
   requestMoney: (contactId: string, amount: number) => Promise<void>;
   addContact: (name: string, phone: string) => Promise<Contact>;
   markRead: (contactId: string) => void;
+  reload: () => Promise<void>; // fetch the newest data from the server (pull to refresh)
   notifications: AppNotification[];
   seenNotificationIds: string[];
   markNotificationsSeen: () => void;
@@ -175,6 +176,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         requestMoney,
         addContact,
         markRead,
+        reload: refresh,
         notifications,
         seenNotificationIds,
         markNotificationsSeen,

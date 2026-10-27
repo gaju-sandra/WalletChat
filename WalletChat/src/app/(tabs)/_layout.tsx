@@ -10,7 +10,7 @@ type TabIconProps = { icon: LucideIcon; color: ColorValue; focused: boolean };
 function TabIcon({ icon: Icon, color, focused }: TabIconProps) {
   return (
     <View style={[styles.pill, focused && styles.pillActive]}>
-      <Icon color={color} size={20} strokeWidth={focused ? 2.4 : 1.8} />
+      <Icon color={color} size={18} strokeWidth={focused ? 2.4 : 1.8} />
     </View>
   );
 }
@@ -24,8 +24,8 @@ export default function TabsLayout() {
         tabBarActiveTintColor: colors.primary,
         tabBarInactiveTintColor: colors.textMuted,
         tabBarStyle: { backgroundColor: colors.surface, borderTopColor: colors.border },
-        tabBarLabelStyle: { fontFamily: fonts.semibold, fontSize: 12 },
-        tabBarIconStyle: { width: 56, height: 28 }, // wider than the default 31, same height so the label keeps its room
+        tabBarLabelStyle: { fontFamily: fonts.semibold, fontSize: 11, lineHeight: 14 },
+        tabBarIconStyle: { width: 52, height: 24 }, // room for the pill; icon (24) + label (14) fit the bar without cutting the label
       }}
     >
       <Tabs.Screen
@@ -61,6 +61,6 @@ export default function TabsLayout() {
 }
 
 const styles = StyleSheet.create({
-  pill: { width: 56, height: 28, borderRadius: radius.full, alignItems: "center", justifyContent: "center" },
+  pill: { width: 52, height: 24, borderRadius: radius.full, alignItems: "center", justifyContent: "center" },
   pillActive: { backgroundColor: colors.primarySoft },
 });

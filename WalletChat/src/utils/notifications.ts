@@ -1,5 +1,5 @@
 import type { Href } from "expo-router";
-import type { Contact, Message, Transaction } from "@/data/mock";
+import type { Contact, Message, Transaction } from "@/types/wallet";
 import { dayLabel, firstName, formatRWF, formatTime, messageTime } from "@/utils/formats";
 import { monthLabel, totals, transactionsThisMonth } from "@/utils/insights";
 

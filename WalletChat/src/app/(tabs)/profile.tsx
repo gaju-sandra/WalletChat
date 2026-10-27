@@ -12,8 +12,7 @@ import {
   Platform,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { router } from "expo-router";
-import { Mail, Phone, Wallet, EyeOff, Pencil, Database } from "lucide-react-native";
+import { Mail, Phone, Wallet, EyeOff, Pencil } from "lucide-react-native";
 import { colors, fonts, radius, spacing } from "@/constants/theme";
 import { Avatar } from "@/components/avatar";
 import { SectionHeader } from "@/components/section-header";

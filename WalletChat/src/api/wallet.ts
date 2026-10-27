@@ -1,7 +1,7 @@
 // Everything the app asks the server for, and the translation from the server's shape
 // (snake_case, number ids, created_at) to the shape the screens already use (camelCase, string ids, date)
 import { palette, type Tone } from "@/constants/theme";
-import type { Contact, Message, Profile, Transaction } from "@/data/mock";
+import type { Contact, Message, Profile, Transaction } from "@/types/wallet";
 import { initialsOf } from "@/utils/formats";
 import { api, CURRENT_USER_ID as me } from "./client";
 

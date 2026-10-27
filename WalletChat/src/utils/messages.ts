@@ -1,4 +1,4 @@
-import type { Contact, Message } from "@/data/mock";
+import type { Contact, Message } from "@/types/wallet";
 import { formatRWF } from "@/utils/formats";
 
 export function previewText(message: Message) {

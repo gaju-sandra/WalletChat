@@ -2,7 +2,7 @@ import { View, Text, StyleSheet, Pressable } from "react-native";
 import { router } from "expo-router";
 import { ArrowUpRight, ArrowDownLeft, HandCoins } from "lucide-react-native";
 import { colors, fonts, radius, spacing } from "@/constants/theme";
-import type { Message } from "@/data/mock";
+import type { Message } from "@/types/wallet";
 import { formatRWF, messageTime } from "@/utils/formats";
 
 export function MessageBubble({ message }: { message: Message }) {

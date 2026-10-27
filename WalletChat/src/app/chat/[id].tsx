@@ -16,7 +16,7 @@ import { ChevronLeft, Send, Wallet } from "lucide-react-native";
 import { colors, fonts, radius, spacing } from "@/constants/theme";
 import { Avatar } from "@/components/avatar";
 import { MessageBubble } from "@/components/message-bubble";
-import type { Message } from "@/data/mock";
+import type { Message } from "@/types/wallet";
 import { useWallet } from "@/context/wallet";
 
 export default function ChatScreen() {
