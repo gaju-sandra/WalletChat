@@ -1,9 +1,10 @@
 // Everything the app asks the server for, and the translation from the server's shape
-// (snake_case, number ids, created_at) to the shape the screens already use (camelCase, string ids, date)
+// (snake_case, number ids, created_at) to the shape the screens already use (camelCase, string ids, date).
+// Every request carries the sign-in ticket (see client.ts), so the server knows who "me" is.
 import { palette, type Tone } from "@/constants/theme";
 import type { Contact, Message, Profile, Transaction } from "@/types/wallet";
 import { initialsOf } from "@/utils/formats";
-import { api, CURRENT_USER_ID as me } from "./client";
+import { api } from "./client";
 
 // ---- What the server sends back ----
 
@@ -43,11 +44,13 @@ function toContact(c: ServerContact): Contact {
   };
 }
 
-function toMessage(m: ServerMessage): Message {
+// meId: my own user id, so we know which side of the chat each message is on
+function toMessage(m: ServerMessage, meId: number): Message {
+  const fromMe = m.sender_id === meId;
   const base = {
     id: String(m.id),
-    contactId: String(m.sender_id === me ? m.receiver_id : m.sender_id), // the *other* person
-    fromMe: m.sender_id === me,
+    contactId: String(fromMe ? m.receiver_id : m.sender_id), // the *other* person
+    fromMe,
     sentAt: m.sent_at,
   };
   return m.kind === "text"
@@ -79,13 +82,14 @@ export type WalletData = {
   transactions: Transaction[];
 };
 
-// Asks for all four at the same time (Promise.all) instead of one after another
+// Asks for all four at the same time (Promise.all) instead of one after another.
+// If I have no wallet yet, GET /me fails with code "profile_missing" and the app shows "Create your wallet".
 export async function fetchWallet(): Promise<WalletData> {
   const [user, contacts, messages, transactions] = await Promise.all([
-    api<ServerUser>(`/users/${me}`),
-    api<ServerContact[]>(`/users/${me}/contacts`),
-    api<ServerMessage[]>(`/users/${me}/messages`),
-    api<ServerTransaction[]>(`/users/${me}/transactions`),
+    api<ServerUser>("/me"),
+    api<ServerContact[]>("/me/contacts"),
+    api<ServerMessage[]>("/me/messages"),
+    api<ServerTransaction[]>("/me/transactions"),
   ]);
 
   return {
@@ -95,40 +99,42 @@ export async function fetchWallet(): Promise<WalletData> {
     hideBalance: user.hide_balance,
     contacts: contacts.map(toContact),
     unread: Object.fromEntries(contacts.map((c) => [String(c.id), c.unread])),
-    messages: messages.map(toMessage),
+    messages: messages.map((m) => toMessage(m, user.id)),
     transactions: transactions.map(toTransaction),
   };
 }
 
-// ---- Actions ----
+// ---- Actions (the sender is always me: the server takes it from the ticket) ----
+
+// First sign-in: create my wallet. The server takes my phone number from Clerk (already verified).
+export function createProfile(name: string) {
+  return api("/me", { method: "POST", body: { name } });
+}
 
 export function sendTransfer(contactId: string, amount: number) {
-  return api("/transfers", { method: "POST", body: { fromUserId: me, toUserId: Number(contactId), amount } });
+  return api("/transfers", { method: "POST", body: { toUserId: Number(contactId), amount } });
 }
 
 export function sendTextMessage(contactId: string, text: string) {
-  return api("/messages", { method: "POST", body: { senderId: me, receiverId: Number(contactId), kind: "text", text } });
+  return api("/messages", { method: "POST", body: { receiverId: Number(contactId), kind: "text", text } });
 }
 
 export function sendRequest(contactId: string, amount: number) {
-  return api("/messages", {
-    method: "POST",
-    body: { senderId: me, receiverId: Number(contactId), kind: "request", amount },
-  });
+  return api("/messages", { method: "POST", body: { receiverId: Number(contactId), kind: "request", amount } });
 }
 
 export function sendTopUp(amount: number, source: string) {
-  return api("/top-ups", { method: "POST", body: { userId: me, amount, source } });
+  return api("/top-ups", { method: "POST", body: { amount, source } });
 }
 
 export async function createContact(name: string, phone: string) {
-  return toContact(await api<ServerContact>(`/users/${me}/contacts`, { method: "POST", body: { name, phone } }));
+  return toContact(await api<ServerContact>("/me/contacts", { method: "POST", body: { name, phone } }));
 }
 
 export function markChatRead(contactId: string) {
-  return api(`/users/${me}/contacts/${contactId}/read`, { method: "POST" });
+  return api(`/me/contacts/${contactId}/read`, { method: "POST" });
 }
 
 export function updateSettings(changes: { name?: string; monthlyBudget?: number; hideBalance?: boolean }) {
-  return api(`/users/${me}`, { method: "PATCH", body: changes });
+  return api("/me", { method: "PATCH", body: changes });
 }

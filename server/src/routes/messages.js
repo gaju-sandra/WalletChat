@@ -4,14 +4,16 @@ import { pool } from "../db.js";
 export const messagesRouter = Router();
 
 // POST /messages
-//   { "senderId": 1, "receiverId": 2, "kind": "text", "text": "Hi!" }
-//   { "senderId": 1, "receiverId": 3, "kind": "request", "amount": 3000 }
+//   { "receiverId": 2, "kind": "text", "text": "Hi!" }
+//   { "receiverId": 3, "kind": "request", "amount": 3000 }
+// The sender is always me (req.user), from the sign-in ticket.
 // Payments are not sent here: they go through POST /transfers, because they move money.
 messagesRouter.post("/", async (req, res) => {
-  const { senderId, receiverId, kind, text, amount } = req.body ?? {};
+  const senderId = req.user.id;
+  const { receiverId, kind, text, amount } = req.body ?? {};
 
-  if (!Number.isInteger(senderId) || !Number.isInteger(receiverId)) {
-    return res.status(400).json({ error: "senderId and receiverId must be whole numbers" });
+  if (!Number.isInteger(receiverId)) {
+    return res.status(400).json({ error: "receiverId must be a whole number" });
   }
   if (senderId === receiverId) return res.status(400).json({ error: "You can't message yourself" });
   if (kind === "text" && (typeof text !== "string" || !text.trim())) {
@@ -43,7 +45,7 @@ messagesRouter.post("/", async (req, res) => {
   } catch (error) {
     await client.query("ROLLBACK");
     // 23503 = foreign key violation: senderId or receiverId isn't a real user
-    if (error.code === "23503") return res.status(404).json({ error: "Sender or receiver not found" });
+    if (error.code === "23503") return res.status(404).json({ error: "Receiver not found" });
     throw error;
   } finally {
     client.release();

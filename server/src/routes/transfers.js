@@ -3,14 +3,15 @@ import { pool } from "../db.js";
 
 export const transfersRouter = Router();
 
-// POST /transfers  { "fromUserId": 1, "toUserId": 2, "amount": 5000 }
-// Sends money from one person to another. Five changes that must all happen, or none:
+// POST /transfers  { "toUserId": 2, "amount": 5000 }
+// Sends money from me (the signed-in person, req.user) to someone else. Five changes that must all happen, or none:
 // two balances, two transactions (one each), and a payment message in their chat.
 transfersRouter.post("/", async (req, res) => {
-  const { fromUserId, toUserId, amount } = req.body ?? {};
+  const fromUserId = req.user.id; // always me: taken from the sign-in ticket, never from the request
+  const { toUserId, amount } = req.body ?? {};
 
-  if (!Number.isInteger(fromUserId) || !Number.isInteger(toUserId)) {
-    return res.status(400).json({ error: "fromUserId and toUserId must be whole numbers" });
+  if (!Number.isInteger(toUserId)) {
+    return res.status(400).json({ error: "toUserId must be a whole number" });
   }
   if (fromUserId === toUserId) return res.status(400).json({ error: "You can't send money to yourself" });
   if (!Number.isInteger(amount) || amount <= 0) {

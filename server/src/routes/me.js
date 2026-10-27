@@ -1,37 +1,56 @@
 import { Router } from "express";
+import { clerkClient, getAuth } from "@clerk/express";
 import { pool } from "../db.js";
 import { normalizePhone } from "../phone.js";
+import { requireUser } from "../auth.js";
 
-export const usersRouter = Router();
-
-// Turns "/users/abc" into a clear 400 error instead of a confusing database error
-function userIdFrom(req, res, param = "id") {
-  const id = Number(req.params[param]);
-  if (!Number.isInteger(id) || id <= 0) {
-    res.status(400).json({ error: `${param} must be a positive whole number` });
-    return null;
-  }
-  return id;
-}
+// Everything here is about "me": the signed-in person. There is no user id in the address any more,
+// so nobody can read or change someone else's wallet by changing a number.
+export const meRouter = Router();
 
 const USER_COLUMNS = "id, name, phone, email, balance, monthly_budget, hide_balance, created_at";
 
-// GET /users/1 → Sandra's profile and balance
-usersRouter.get("/:id", async (req, res) => {
-  const id = userIdFrom(req, res);
-  if (id === null) return;
+// POST /me  { "name": "Sandra Gaju" }
+// Creates your wallet the first time you sign in. The phone number comes from Clerk (already verified
+// with an SMS code), never from the request, so nobody can claim someone else's number.
+meRouter.post("/", async (req, res) => {
+  const { userId } = getAuth(req);
+  if (!userId) return res.status(401).json({ error: "Please sign in.", code: "signed_out" });
 
-  // $1 is a placeholder: the value is sent separately from the SQL, so it can't inject SQL
-  const { rows } = await pool.query(`SELECT ${USER_COLUMNS} FROM users WHERE id = $1`, [id]);
-  if (rows.length === 0) return res.status(404).json({ error: "User not found" });
+  const name = typeof req.body?.name === "string" ? req.body.name.trim() : "";
+  if (!name) return res.status(400).json({ error: "Enter your name." });
+
+  const clerkUser = await clerkClient.users.getUser(userId);
+  const phone = normalizePhone(clerkUser.primaryPhoneNumber?.phoneNumber);
+  if (!phone) return res.status(400).json({ error: "Your account has no valid phone number." });
+
+  // If someone already added this number as a contact, that row is waiting for its owner: claim it,
+  // so the chats and payments people sent before you signed up are yours. Otherwise create a new wallet.
+  const { rows } = await pool.query(
+    `INSERT INTO users (name, phone, clerk_user_id) VALUES ($1, $2, $3)
+     ON CONFLICT (phone) DO UPDATE
+        SET name = EXCLUDED.name, clerk_user_id = EXCLUDED.clerk_user_id
+      WHERE users.clerk_user_id IS NULL
+     RETURNING ${USER_COLUMNS}`,
+    [name, phone, userId],
+  );
+  // No row back = this phone already belongs to a different account
+  if (rows.length === 0) return res.status(409).json({ error: "This phone number already has a wallet." });
+  res.status(201).json(rows[0]);
+});
+
+// Every route below needs a signed-in user with a wallet
+meRouter.use(requireUser);
+
+// GET /me → my profile and balance
+meRouter.get("/", async (req, res) => {
+  const { rows } = await pool.query(`SELECT ${USER_COLUMNS} FROM users WHERE id = $1`, [req.user.id]);
   res.json(rows[0]);
 });
 
-// PATCH /users/1  { "name"?: "...", "monthlyBudget"?: 100000, "hideBalance"?: true }
+// PATCH /me  { "name"?: "...", "monthlyBudget"?: 100000, "hideBalance"?: true }
 // Changes only the settings that were sent
-usersRouter.patch("/:id", async (req, res) => {
-  const id = userIdFrom(req, res);
-  if (id === null) return;
+meRouter.patch("/", async (req, res) => {
   const { name, monthlyBudget, hideBalance } = req.body ?? {};
 
   if (name !== undefined && (typeof name !== "string" || !name.trim())) {
@@ -52,17 +71,13 @@ usersRouter.patch("/:id", async (req, res) => {
             hide_balance   = COALESCE($4, hide_balance)
       WHERE id = $1
       RETURNING ${USER_COLUMNS}`,
-    [id, name?.trim() ?? null, monthlyBudget ?? null, hideBalance ?? null],
+    [req.user.id, name?.trim() ?? null, monthlyBudget ?? null, hideBalance ?? null],
   );
-  if (rows.length === 0) return res.status(404).json({ error: "User not found" });
   res.json(rows[0]);
 });
 
-// GET /users/1/contacts → Sandra's chat list, most recent conversation first
-usersRouter.get("/:id/contacts", async (req, res) => {
-  const id = userIdFrom(req, res);
-  if (id === null) return;
-
+// GET /me/contacts → my chat list, most recent conversation first
+meRouter.get("/contacts", async (req, res) => {
   const { rows } = await pool.query(
     `SELECT u.id, u.name, u.phone, c.unread, c.added_at,
             -- latest of "when added" and "newest message either way"; GREATEST skips NULLs
@@ -75,16 +90,16 @@ usersRouter.get("/:id/contacts", async (req, res) => {
       WHERE c.owner_id = $1
       GROUP BY u.id, c.unread, c.added_at
       ORDER BY last_activity DESC`,
-    [id],
+    [req.user.id],
   );
   res.json(rows);
 });
 
-// POST /users/1/contacts  { "name": "Diane Mukamana", "phone": "0788 555 123" }
-// If someone already uses that number, they are added; otherwise a new user is created for them.
-usersRouter.post("/:id/contacts", async (req, res) => {
-  const id = userIdFrom(req, res);
-  if (id === null) return;
+// POST /me/contacts  { "name": "Diane Mukamana", "phone": "0788 555 123" }
+// If someone already uses that number, they are added; otherwise a row is created for them,
+// waiting for them to sign up (clerk_user_id stays NULL until then).
+meRouter.post("/contacts", async (req, res) => {
+  const me = req.user.id;
   const name = typeof req.body?.name === "string" ? req.body.name.trim() : "";
   const phone = normalizePhone(req.body?.phone);
 
@@ -104,7 +119,7 @@ usersRouter.post("/:id/contacts", async (req, res) => {
     );
     const person = people[0];
 
-    if (person.id === id) {
+    if (person.id === me) {
       await client.query("ROLLBACK");
       return res.status(400).json({ error: "That's your own number." });
     }
@@ -113,7 +128,7 @@ usersRouter.post("/:id/contacts", async (req, res) => {
       `INSERT INTO contacts (owner_id, contact_id) VALUES ($1, $2)
        ON CONFLICT DO NOTHING
        RETURNING unread, added_at`,
-      [id, person.id],
+      [me, person.id],
     );
     if (added.length === 0) {
       await client.query("ROLLBACK");
@@ -123,7 +138,7 @@ usersRouter.post("/:id/contacts", async (req, res) => {
     // Add it the other way round too, so they can chat back
     await client.query("INSERT INTO contacts (owner_id, contact_id) VALUES ($1, $2) ON CONFLICT DO NOTHING", [
       person.id,
-      id,
+      me,
     ]);
 
     await client.query("COMMIT");
@@ -136,55 +151,50 @@ usersRouter.post("/:id/contacts", async (req, res) => {
   }
 });
 
-// POST /users/1/contacts/2/read → Sandra has read her chat with Aline
-usersRouter.post("/:id/contacts/:contactId/read", async (req, res) => {
-  const id = userIdFrom(req, res);
-  if (id === null) return;
-  const contactId = userIdFrom(req, res, "contactId");
-  if (contactId === null) return;
-
-  await pool.query("UPDATE contacts SET unread = 0 WHERE owner_id = $1 AND contact_id = $2", [id, contactId]);
+// POST /me/contacts/2/read → I have read my chat with user 2
+meRouter.post("/contacts/:contactId/read", async (req, res) => {
+  const contactId = Number(req.params.contactId);
+  if (!Number.isInteger(contactId) || contactId <= 0) {
+    return res.status(400).json({ error: "contactId must be a positive whole number" });
+  }
+  await pool.query("UPDATE contacts SET unread = 0 WHERE owner_id = $1 AND contact_id = $2", [
+    req.user.id,
+    contactId,
+  ]);
   res.sendStatus(204); // done, nothing to send back
 });
 
-// GET /users/1/transactions → Sandra's money in and out, newest first
-usersRouter.get("/:id/transactions", async (req, res) => {
-  const id = userIdFrom(req, res);
-  if (id === null) return;
-
+// GET /me/transactions → my money in and out, newest first
+meRouter.get("/transactions", async (req, res) => {
   const { rows } = await pool.query(
     `SELECT id, title, subtitle, amount, category, created_at
        FROM transactions
       WHERE user_id = $1
       ORDER BY created_at DESC
       LIMIT 100`,
-    [id],
+    [req.user.id],
   );
   res.json(rows);
 });
 
-// GET /users/1/messages → every message Sandra sent or received, oldest first
-usersRouter.get("/:id/messages", async (req, res) => {
-  const id = userIdFrom(req, res);
-  if (id === null) return;
-
+// GET /me/messages → every message I sent or received, oldest first
+meRouter.get("/messages", async (req, res) => {
   const { rows } = await pool.query(
     `SELECT id, sender_id, receiver_id, kind, text, amount, sent_at
        FROM messages
       WHERE sender_id = $1 OR receiver_id = $1
       ORDER BY sent_at`,
-    [id],
+    [req.user.id],
   );
   res.json(rows);
 });
 
-// GET /users/1/messages/2 → the chat between Sandra (1) and Aline (2), oldest first like a chat screen
-usersRouter.get("/:id/messages/:otherId", async (req, res) => {
-  const id = userIdFrom(req, res);
-  if (id === null) return;
-  const otherId = userIdFrom(req, res, "otherId");
-  if (otherId === null) return;
-
+// GET /me/messages/2 → my chat with user 2, oldest first like a chat screen
+meRouter.get("/messages/:otherId", async (req, res) => {
+  const otherId = Number(req.params.otherId);
+  if (!Number.isInteger(otherId) || otherId <= 0) {
+    return res.status(400).json({ error: "otherId must be a positive whole number" });
+  }
   const { rows } = await pool.query(
     `SELECT id, sender_id, receiver_id, kind, text, amount, sent_at,
             sender_id = $1 AS from_me
@@ -192,7 +202,7 @@ usersRouter.get("/:id/messages/:otherId", async (req, res) => {
       WHERE (sender_id = $1 AND receiver_id = $2)
          OR (sender_id = $2 AND receiver_id = $1)
       ORDER BY sent_at`,
-    [id, otherId],
+    [req.user.id, otherId],
   );
   res.json(rows);
 });

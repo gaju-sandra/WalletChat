@@ -6,12 +6,12 @@ export const topUpsRouter = Router();
 const MAX_TOP_UP = 1_000_000;
 const SOURCES = ["MTN MoMo", "Airtel Money", "Bank"];
 
-// POST /top-ups  { "userId": 1, "amount": 10000, "source": "MTN MoMo" }
+// POST /top-ups  { "amount": 10000, "source": "MTN MoMo" }   (tops up my own wallet)
 // (Pretend money: a real app would first take it from the mobile money account.)
 topUpsRouter.post("/", async (req, res) => {
-  const { userId, amount, source } = req.body ?? {};
+  const userId = req.user.id;
+  const { amount, source } = req.body ?? {};
 
-  if (!Number.isInteger(userId)) return res.status(400).json({ error: "userId must be a whole number" });
   if (!Number.isInteger(amount) || amount <= 0) {
     return res.status(400).json({ error: "amount must be a positive whole number of RWF" });
   }

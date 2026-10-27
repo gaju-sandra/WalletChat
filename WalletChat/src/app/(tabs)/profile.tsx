@@ -13,7 +13,8 @@ import {
   type ScrollViewInstance,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { Mail, Phone, Wallet, EyeOff, Pencil } from "lucide-react-native";
+import { useClerk } from "@clerk/expo";
+import { Mail, Phone, Wallet, EyeOff, Pencil, LogOut } from "lucide-react-native";
 import { colors, fonts, radius, spacing } from "@/constants/theme";
 import { Avatar } from "@/components/avatar";
 import { SectionHeader } from "@/components/section-header";
@@ -23,6 +24,7 @@ import { formatRWF, initialsOf } from "@/utils/formats";
 
 export default function ProfileScreen() {
   const { profile, updateName, monthlyBudget, setMonthlyBudget, hideBalance, setHideBalance } = useWallet();
+  const { signOut } = useClerk(); // ends the Clerk session: the app goes back to the sign-in screen
 
   // Local "draft" state: what the user is typing before they press Save
   const [editingName, setEditingName] = useState(false);
@@ -107,7 +109,8 @@ export default function ProfileScreen() {
           <View style={styles.section}>
             <SectionHeader title="Account" />
             <View style={styles.listCard}>
-              <SettingsRow icon={Mail} label="Email" value={profile.email} />
+              {/* People who sign up with a phone number have no email, so only show it when there is one */}
+              {profile.email ? <SettingsRow icon={Mail} label="Email" value={profile.email} /> : null}
               <SettingsRow icon={Phone} tone="green" label="Phone" value={profile.phone} isLast />
             </View>
           </View>
@@ -163,8 +166,10 @@ export default function ProfileScreen() {
             </View>
           </View>
 
-          
-          
+          <Pressable style={styles.signOutButton} onPress={() => signOut()} accessibilityRole="button">
+            <LogOut size={18} color={colors.danger} />
+            <Text style={styles.signOutText}>Sign out</Text>
+          </Pressable>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -220,4 +225,16 @@ const styles = StyleSheet.create({
   },
   link: { fontFamily: fonts.semibold, fontSize: 13, color: colors.primary },
   version: { fontFamily: fonts.regular, fontSize: 12, color: colors.textMuted, textAlign: "center" },
+  signOutButton: {
+    height: 52,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.sm,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  signOutText: { fontFamily: fonts.semibold, fontSize: 15, color: colors.danger },
 });

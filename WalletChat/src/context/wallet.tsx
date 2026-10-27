@@ -1,5 +1,7 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { useAuth, useClerk } from "@clerk/expo";
 import type { Contact, Message, Profile, Transaction } from "@/types/wallet";
+import { ApiError, setTokenGetter } from "@/api/client";
 import {
   createContact,
   fetchWallet,
@@ -12,6 +14,7 @@ import {
   type WalletData,
 } from "@/api/wallet";
 import { ServerStatus } from "@/components/server-status";
+import { ProfileSetup } from "@/components/profile-setup";
 import { buildNotifications, type AppNotification } from "@/utils/notifications";
 
 type WalletContextValue = {
@@ -47,6 +50,10 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   // Everything from the server, or null until the first load finishes
   const [data, setData] = useState<WalletData | null>(null);
   const [loadError, setLoadError] = useState("");
+  // Signed in with Clerk, but no wallet in our database yet → show "Create your wallet"
+  const [needsProfile, setNeedsProfile] = useState(false);
+  const { getToken } = useAuth(); // gives a fresh sign-in ticket each time it's called
+  const { signOut } = useClerk();
   // Only this phone needs to remember which notifications you've seen, so this stays local
   const [seenNotificationIds, setSeenNotificationIds] = useState<string[]>([]);
 
@@ -55,15 +62,35 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
   // Load when the app opens (and on every retry)
   useEffect(() => {
+    // From now on every request to our server carries the Clerk ticket (see api/client.ts)
+    setTokenGetter(getToken);
+
     let cancelled = false; // set if the provider goes away before the server answers
     fetchWallet().then(
       (wallet) => !cancelled && setData(wallet),
-      (error) => !cancelled && setLoadError(messageOf(error)),
+      (error) => {
+        if (cancelled) return;
+        if (error instanceof ApiError && error.code === "profile_missing") setNeedsProfile(true);
+        else setLoadError(messageOf(error));
+      },
     );
     return () => {
       cancelled = true;
     };
-  }, [attempt]);
+  }, [attempt, getToken]);
+
+  // First sign-in: ask for a name to create the wallet, then load it
+  if (needsProfile) {
+    return (
+      <ProfileSetup
+        onCreated={() => {
+          setNeedsProfile(false);
+          setAttempt((n) => n + 1);
+        }}
+        onSignOut={() => signOut()}
+      />
+    );
+  }
 
   // Until the first load works, show a spinner or the error instead of the app
   if (!data) {
