@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
+  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
@@ -15,12 +16,12 @@ import { ChevronLeft, Send, Wallet } from "lucide-react-native";
 import { colors, fonts, radius, spacing } from "@/constants/theme";
 import { Avatar } from "@/components/avatar";
 import { MessageBubble } from "@/components/message-bubble";
-import { contacts, type Message } from "@/data/mock";
+import type { Message } from "@/data/mock";
 import { useWallet } from "@/context/wallet";
 
 export default function ChatScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { messages, sendMessage } = useWallet();
+  const { contacts, messages, sendMessage, markRead } = useWallet();
   const [draft, setDraft] = useState("");
   const listRef = useRef<FlatList<Message>>(null);
 
@@ -28,15 +29,26 @@ export default function ChatScreen() {
   const thread = messages.filter((m) => m.contactId === id);
   const canSend = draft.trim().length > 0;
 
+  // Opening the chat means you have read it
+  useEffect(() => {
+    if (id) markRead(id);
+  }, [id, markRead]);
+
   function goBack() {
     if (router.canGoBack()) router.back();
     else router.replace("/chats");
   }
 
-  function handleSend() {
+  async function handleSend() {
     if (!contact || !canSend) return;
-    sendMessage(contact.id, draft);
-    setDraft(""); // clear the input
+    const text = draft;
+    setDraft(""); // clear the input straight away, like any chat app
+    try {
+      await sendMessage(contact.id, text);
+    } catch (error) {
+      setDraft(text); // put the text back so nothing is lost
+      Alert.alert("Message not sent", error instanceof Error ? error.message : String(error));
+    }
   }
 
   if (!contact) {

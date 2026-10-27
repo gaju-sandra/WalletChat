@@ -6,13 +6,13 @@ import { colors, spacing, radius, fonts } from "@/constants/theme";
 import { Avatar } from "@/components/avatar";
 import { SectionHeader } from "@/components/section-header";
 import { TransactionRow } from "@/components/transaction-row";
-import { contacts } from "@/data/mock";
 import { useWallet } from "@/context/wallet";
-import { formatRWF, initialsOf } from "@/utils/formats";
+import { firstName, formatRWF, initialsOf } from "@/utils/formats";
 
 export default function HomeScreen() {
-  const { balance, transactions, profile, hideBalance } = useWallet();
+  const { balance, transactions, contacts, profile, hideBalance, notifications, seenNotificationIds } = useWallet();
   const recent = transactions.slice(0, 5);
+  const unseenCount = notifications.filter((n) => !seenNotificationIds.includes(n.id)).length;
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
@@ -26,8 +26,13 @@ export default function HomeScreen() {
             <Text style={styles.greeting}>Welcome to</Text>
             <Text style={styles.name}>WalletChat</Text>
           </View>
-          <Pressable style={styles.iconButton} accessibilityLabel="Notifications">
+          <Pressable
+            style={styles.iconButton}
+            onPress={() => router.push("/notifications")}
+            accessibilityLabel={unseenCount > 0 ? `Notifications, ${unseenCount} new` : "Notifications"}
+          >
             <Bell size={20} color={colors.text} />
+            {unseenCount > 0 ? <View style={styles.bellDot} /> : null}
           </Pressable>
         </View>
 
@@ -35,7 +40,7 @@ export default function HomeScreen() {
         <View style={styles.card}>
           <Text style={styles.cardLabel}>Total balance</Text>
           <Text style={styles.balance}>{hideBalance ? "RWF ......" :formatRWF(balance)}</Text>
-          <Text style={styles.weekly}>+RWF 12,400 this week</Text>
+          
 
           <View style={styles.actions}>
             <Pressable
@@ -45,11 +50,11 @@ export default function HomeScreen() {
               <ArrowUpRight size={18} color={colors.text} />
               <Text style={[styles.actionText, { color: colors.text }]}>Send</Text>
             </Pressable>
-            <Pressable style={styles.actionButton}>
+            <Pressable style={styles.actionButton} onPress={() => router.push("/request")}>
               <ArrowDownLeft size={18} color="white" />
               <Text style={styles.actionText}>Request</Text>
             </Pressable>
-            <Pressable style={styles.actionButton}>
+            <Pressable style={styles.actionButton} onPress={() => router.push("/top-up")}>
               <Plus size={18} color="white" />
               <Text style={styles.actionText}>Top up</Text>
             </Pressable>
@@ -84,7 +89,9 @@ export default function HomeScreen() {
                 onPress={() => router.push({ pathname: "/send", params: { contactId: contact.id } })}
               >
                 <Avatar initials={contact.initials} tone={contact.tone} />
-                <Text style={styles.quickName}>{contact.name}</Text>
+                <Text style={styles.quickName} numberOfLines={1}>
+                  {firstName(contact.name)}
+                </Text>
               </Pressable>
             ))}
           </ScrollView>
@@ -95,7 +102,7 @@ export default function HomeScreen() {
           <SectionHeader
             title="Recent activity"
             actionLabel="See all"
-            onPressAction={() => router.push("/insights")}
+            onPressAction={() => router.push("/activity")}
           />
           <View style={styles.listCard}>
             {recent.map((tx, index) => (
@@ -146,6 +153,17 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
     alignItems: "center",
     justifyContent: "center",
+  },
+  bellDot: {
+    position: "absolute",
+    top: 10,
+    right: 11,
+    width: 9,
+    height: 9,
+    borderRadius: radius.full,
+    backgroundColor: colors.danger,
+    borderWidth: 1.5,
+    borderColor: colors.surface,
   },
   card: {
     backgroundColor: colors.primary,
