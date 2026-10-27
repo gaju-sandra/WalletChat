@@ -1,9 +1,10 @@
 import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
-import { useAuth, useClerk } from "@clerk/expo";
+import { useAuth, useClerk, useUser } from "@clerk/expo";
 import type { Contact, Message, Profile, Transaction } from "@/types/wallet";
 import { ApiError, setTokenGetter } from "@/api/client";
 import {
   createContact,
+  createProfile,
   fetchWallet,
   markChatRead,
   sendRequest,
@@ -50,10 +51,15 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   // Everything from the server, or null until the first load finishes
   const [data, setData] = useState<WalletData | null>(null);
   const [loadError, setLoadError] = useState("");
-  // Signed in with Clerk, but no wallet in our database yet → show "Create your wallet"
+  // Signed in with Clerk, but no wallet in our database yet, and creating it automatically didn't work
+  // → show "Create your wallet" (with the reason in profileError)
   const [needsProfile, setNeedsProfile] = useState(false);
+  const [profileError, setProfileError] = useState("");
   const { getToken } = useAuth(); // gives a fresh sign-in ticket each time it's called
   const { signOut } = useClerk();
+  const { user } = useUser();
+  // The name and phone typed on the Create account screen, saved with the Clerk account
+  const signUpDetails = user?.unsafeMetadata as { name?: string; phone?: string } | undefined;
   // Only this phone needs to remember which notifications you've seen, so this stays local
   const [seenNotificationIds, setSeenNotificationIds] = useState<string[]>([]);
 
@@ -70,21 +76,37 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       (wallet) => !cancelled && setData(wallet),
       (error) => {
         if (cancelled) return;
-        if (error instanceof ApiError && error.code === "profile_missing") setNeedsProfile(true);
-        else setLoadError(messageOf(error));
+        if (!(error instanceof ApiError && error.code === "profile_missing")) return setLoadError(messageOf(error));
+
+        // No wallet yet (first sign-in). Create it from the Create account form's details, then load it.
+        const name = signUpDetails?.name;
+        const phone = signUpDetails?.phone;
+        if (!name || !phone) return setNeedsProfile(true); // nothing saved: ask on the Create your wallet screen
+        createProfile(name, phone).then(
+          () => !cancelled && setAttempt((n) => n + 1),
+          (createError) => {
+            if (cancelled) return;
+            setProfileError(messageOf(createError)); // e.g. "This phone number is already used by another wallet."
+            setNeedsProfile(true);
+          },
+        );
       },
     );
     return () => {
       cancelled = true;
     };
-  }, [attempt, getToken]);
+  }, [attempt, getToken, signUpDetails?.name, signUpDetails?.phone]);
 
-  // First sign-in: ask for a name to create the wallet, then load it
+  // No wallet yet and it couldn't be created automatically: ask for the details, then load it
   if (needsProfile) {
     return (
       <ProfileSetup
+        initialName={signUpDetails?.name}
+        initialPhone={signUpDetails?.phone}
+        initialError={profileError}
         onCreated={() => {
           setNeedsProfile(false);
+          setProfileError("");
           setAttempt((n) => n + 1);
         }}
         onSignOut={() => signOut()}

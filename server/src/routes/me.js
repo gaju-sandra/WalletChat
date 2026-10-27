@@ -10,32 +10,37 @@ export const meRouter = Router();
 
 const USER_COLUMNS = "id, name, phone, email, balance, monthly_budget, hide_balance, created_at";
 
-// POST /me  { "name": "Sandra Gaju" }
-// Creates your wallet the first time you sign in. The phone number comes from Clerk (already verified
-// with an SMS code), never from the request, so nobody can claim someone else's number.
+// POST /me  { "name": "Sandra Gaju", "phone": "0788 000 000" }
+// Creates your wallet the first time you sign in. Your email comes from Clerk (already verified with a
+// code). The phone number comes from the Create account form, so it is NOT verified: see the rule below.
 meRouter.post("/", async (req, res) => {
   const { userId } = getAuth(req);
   if (!userId) return res.status(401).json({ error: "Please sign in.", code: "signed_out" });
 
   const name = typeof req.body?.name === "string" ? req.body.name.trim() : "";
+  const phone = normalizePhone(req.body?.phone);
   if (!name) return res.status(400).json({ error: "Enter your name." });
+  if (!phone) return res.status(400).json({ error: "Enter a valid phone number, e.g. 0788 123 456." });
 
   const clerkUser = await clerkClient.users.getUser(userId);
-  const phone = normalizePhone(clerkUser.primaryPhoneNumber?.phoneNumber);
-  if (!phone) return res.status(400).json({ error: "Your account has no valid phone number." });
+  const email = clerkUser.primaryEmailAddress?.emailAddress ?? null;
 
-  // If someone already added this number as a contact, that row is waiting for its owner: claim it,
-  // so the chats and payments people sent before you signed up are yours. Otherwise create a new wallet.
+  // If someone already added this number as a contact, that row is waiting for its owner. Because the
+  // phone isn't verified, we only hand it over while it has no money history: otherwise anyone could type
+  // a stranger's number and take money that was sent to it.
   const { rows } = await pool.query(
-    `INSERT INTO users (name, phone, clerk_user_id) VALUES ($1, $2, $3)
+    `INSERT INTO users (name, phone, email, clerk_user_id) VALUES ($1, $2, $3, $4)
      ON CONFLICT (phone) DO UPDATE
-        SET name = EXCLUDED.name, clerk_user_id = EXCLUDED.clerk_user_id
+        SET name = EXCLUDED.name, email = EXCLUDED.email, clerk_user_id = EXCLUDED.clerk_user_id
       WHERE users.clerk_user_id IS NULL
+        AND NOT EXISTS (SELECT 1 FROM transactions t WHERE t.user_id = users.id)
      RETURNING ${USER_COLUMNS}`,
-    [name, phone, userId],
+    [name, phone, email, userId],
   );
-  // No row back = this phone already belongs to a different account
-  if (rows.length === 0) return res.status(409).json({ error: "This phone number already has a wallet." });
+  // No row back = this phone already belongs to someone else's wallet
+  if (rows.length === 0) {
+    return res.status(409).json({ error: "This phone number is already used by another wallet." });
+  }
   res.status(201).json(rows[0]);
 });
 

@@ -106,9 +106,9 @@ export async function fetchWallet(): Promise<WalletData> {
 
 // ---- Actions (the sender is always me: the server takes it from the ticket) ----
 
-// First sign-in: create my wallet. The server takes my phone number from Clerk (already verified).
-export function createProfile(name: string) {
-  return api("/me", { method: "POST", body: { name } });
+// First sign-in: create my wallet with my name and phone number (my email comes from Clerk)
+export function createProfile(name: string, phone: string) {
+  return api("/me", { method: "POST", body: { name, phone } });
 }
 
 export function sendTransfer(contactId: string, amount: number) {
