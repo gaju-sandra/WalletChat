@@ -10,6 +10,7 @@ import {
   KeyboardAvoidingView,
   Keyboard,
   Platform,
+  type ScrollViewInstance,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { Mail, Phone, Wallet, EyeOff, Pencil } from "lucide-react-native";
@@ -28,7 +29,7 @@ export default function ProfileScreen() {
   const [nameDraft, setNameDraft] = useState(profile.name);
   const [editingBudget, setEditingBudget] = useState(false);
   const [budgetDraft, setBudgetDraft] = useState(String(monthlyBudget));
-  const scrollRef = useRef<ScrollView>(null);
+  const scrollRef = useRef<ScrollViewInstance>(null) // the scroll view on screen (what we call scrollToEnd on);
 
   // The budget field sits low on the screen: once the keyboard is open, scroll it into view
   useEffect(() => {

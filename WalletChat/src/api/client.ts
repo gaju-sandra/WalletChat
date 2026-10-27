@@ -1,6 +1,16 @@
-// Where the WalletChat server runs. Set EXPO_PUBLIC_API_URL in WalletChat/.env.local
+import Constants from "expo-constants";
+
+// While developing, the phone already knows your computer's address: it's where it downloaded the app's
+// code from (Metro, e.g. "172.20.10.4:8081"). The server runs on that same computer, on port 3000.
+// So when your Wi-Fi address changes, the app follows automatically.
+function devServerUrl() {
+  const host = Constants.expoConfig?.hostUri?.split(":")[0]; // "172.20.10.4:8081" → "172.20.10.4"
+  return host ? `http://${host}:3000` : undefined;
+}
+
+// Where the WalletChat server runs. EXPO_PUBLIC_API_URL in WalletChat/.env.local can override it
 // (it must be read exactly like this, with dot notation, for Expo to fill it in)
-export const API_URL = process.env.EXPO_PUBLIC_API_URL ?? "http://localhost:3000";
+export const API_URL = process.env.EXPO_PUBLIC_API_URL ?? devServerUrl() ?? "http://localhost:3000";
 
 // No login yet: the app always acts as Sandra, user 1 in the server's seed data
 export const CURRENT_USER_ID = 1;
