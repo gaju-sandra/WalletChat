@@ -8,6 +8,7 @@ import {
   TextInput,
   KeyboardAvoidingView,
   Platform,
+  Alert,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
@@ -38,10 +39,16 @@ export default function ChatScreen() {
     else router.replace("/chats");
   }
 
-  function handleSend() {
+  async function handleSend() {
     if (!contact || !canSend) return;
-    sendMessage(contact.id, draft);
-    setDraft(""); // clear the input
+    const text = draft;
+    setDraft(""); // clear the input straight away, like any chat app
+    try {
+      await sendMessage(contact.id, text);
+    } catch (error) {
+      setDraft(text); // put the text back so nothing is lost
+      Alert.alert("Message not sent", error instanceof Error ? error.message : String(error));
+    }
   }
 
   if (!contact) {

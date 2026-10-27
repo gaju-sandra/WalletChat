@@ -8,6 +8,7 @@ import { RecipientPicker } from "@/components/recipient-picker";
 import { AmountPad } from "@/components/amount-pad";
 import { PrimaryButton } from "@/components/primary-button";
 import { SuccessView } from "@/components/success-view";
+import { FormError } from "@/components/form-error";
 import { useWallet } from "@/context/wallet";
 import { formatRWF } from "@/utils/formats";
 import { goBack } from "@/utils/navigation";
@@ -19,16 +20,26 @@ export default function SendScreen() {
   const [contactId, setContactId] = useState(params.contactId);
   const [digits, setDigits] = useState(params.amount ?? "");
   const [sent, setSent] = useState(false);
+  const [busy, setBusy] = useState(false); // waiting for the server
+  const [error, setError] = useState("");
 
   const contact = contacts.find((c) => c.id === contactId);
   const amount = Number(digits || "0");
   const exceedsBalance = amount > balance;
-  const canSend = !!contact && amount > 0 && !exceedsBalance;
+  const canSend = !!contact && amount > 0 && !exceedsBalance && !busy;
 
-  function handleSend() {
+  async function handleSend() {
     if (!contact) return;
-    sendMoney(contact.id, amount);
-    setSent(true);
+    setBusy(true);
+    setError("");
+    try {
+      await sendMoney(contact.id, amount); // waits for the server to say yes
+      setSent(true);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : String(error)); // e.g. "Not enough balance"
+    } finally {
+      setBusy(false); // runs whether it worked or not
+    }
   }
 
   if (sent && contact) {
@@ -57,8 +68,10 @@ export default function SendScreen() {
         hint={exceedsBalance ? "Not enough balance" : `Available ${formatRWF(balance)}`}
       />
 
+      <FormError message={error} />
+
       <PrimaryButton
-        label={contact && amount > 0 ? `Send ${formatRWF(amount)}` : "Send"}
+        label={busy ? "Sending…" : contact && amount > 0 ? `Send ${formatRWF(amount)}` : "Send"}
         disabled={!canSend}
         onPress={handleSend}
       />

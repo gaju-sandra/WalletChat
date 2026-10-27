@@ -7,6 +7,7 @@ import { ScreenHeader } from "@/components/screen-header";
 import { AmountPad } from "@/components/amount-pad";
 import { PrimaryButton } from "@/components/primary-button";
 import { SuccessView } from "@/components/success-view";
+import { FormError } from "@/components/form-error";
 import { useWallet } from "@/context/wallet";
 import { formatRWF } from "@/utils/formats";
 import { goBack } from "@/utils/navigation";
@@ -26,15 +27,25 @@ export default function TopUpScreen() {
   const [sourceId, setSourceId] = useState(sources[0].id);
   const [digits, setDigits] = useState("");
   const [done, setDone] = useState(false);
+  const [busy, setBusy] = useState(false); // waiting for the server
+  const [error, setError] = useState("");
 
   const source = sources.find((s) => s.id === sourceId) ?? sources[0];
   const amount = Number(digits || "0");
   const overLimit = amount > MAX_TOP_UP;
-  const canTopUp = amount > 0 && !overLimit;
+  const canTopUp = amount > 0 && !overLimit && !busy;
 
-  function handleTopUp() {
-    topUp(amount, source.label);
-    setDone(true);
+  async function handleTopUp() {
+    setBusy(true);
+    setError("");
+    try {
+      await topUp(amount, source.label);
+      setDone(true);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setBusy(false);
+    }
   }
 
   if (done) {
@@ -86,8 +97,10 @@ export default function TopUpScreen() {
         quickAmounts={[5000, 10000, 20000]}
       />
 
+      <FormError message={error} />
+
       <PrimaryButton
-        label={amount > 0 ? `Top up ${formatRWF(amount)}` : "Top up"}
+        label={busy ? "Topping up…" : amount > 0 ? `Top up ${formatRWF(amount)}` : "Top up"}
         disabled={!canTopUp}
         onPress={handleTopUp}
       />

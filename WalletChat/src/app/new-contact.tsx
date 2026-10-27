@@ -16,8 +16,9 @@ export default function NewContactScreen() {
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
   const [error, setError] = useState("");
+  const [busy, setBusy] = useState(false); // waiting for the server
 
-  function handleSave() {
+  async function handleSave() {
     const phoneDigits = digitsOnly(phone);
 
     if (!name.trim()) return setError("Enter a name.");
@@ -29,9 +30,16 @@ export default function NewContactScreen() {
     const exists = contacts.some((c) => c.phone && digitsOnly(c.phone).slice(-9) === phoneDigits.slice(-9));
     if (exists) return setError("This number is already in your contacts.");
 
-    const contact = addContact(name, phone);
-    // replace: Back from the new chat should not come back to this form
-    router.replace({ pathname: "/chat/[id]", params: { id: contact.id } });
+    setBusy(true);
+    try {
+      const contact = await addContact(name, phone); // the server checks the number too
+      // replace: Back from the new chat should not come back to this form
+      router.replace({ pathname: "/chat/[id]", params: { id: contact.id } });
+    } catch (error) {
+      setError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setBusy(false);
+    }
   }
 
   return (
@@ -78,7 +86,7 @@ export default function NewContactScreen() {
 
       {error ? <Text style={styles.error}>{error}</Text> : null}
 
-      <PrimaryButton label="Save and start chat" onPress={handleSave} />
+      <PrimaryButton label={busy ? "Saving…" : "Save and start chat"} onPress={handleSave} disabled={busy} />
     </SafeAreaView>
   );
 }

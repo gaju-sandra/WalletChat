@@ -8,6 +8,7 @@ import { RecipientPicker } from "@/components/recipient-picker";
 import { AmountPad } from "@/components/amount-pad";
 import { PrimaryButton } from "@/components/primary-button";
 import { SuccessView } from "@/components/success-view";
+import { FormError } from "@/components/form-error";
 import { useWallet } from "@/context/wallet";
 import { formatRWF } from "@/utils/formats";
 import { goBack } from "@/utils/navigation";
@@ -17,15 +18,25 @@ export default function RequestScreen() {
   const [contactId, setContactId] = useState<string | undefined>();
   const [digits, setDigits] = useState("");
   const [requested, setRequested] = useState(false);
+  const [busy, setBusy] = useState(false); // waiting for the server
+  const [error, setError] = useState("");
 
   const contact = contacts.find((c) => c.id === contactId);
   const amount = Number(digits || "0");
-  const canRequest = !!contact && amount > 0;
+  const canRequest = !!contact && amount > 0 && !busy;
 
-  function handleRequest() {
+  async function handleRequest() {
     if (!contact) return;
-    requestMoney(contact.id, amount);
-    setRequested(true);
+    setBusy(true);
+    setError("");
+    try {
+      await requestMoney(contact.id, amount);
+      setRequested(true);
+    } catch (error) {
+      setError(error instanceof Error ? error.message : String(error));
+    } finally {
+      setBusy(false);
+    }
   }
 
   if (requested && contact) {
@@ -54,8 +65,10 @@ export default function RequestScreen() {
 
       <AmountPad digits={digits} onChange={setDigits} hint="They'll get the request in your chat" />
 
+      <FormError message={error} />
+
       <PrimaryButton
-        label={contact && amount > 0 ? `Request ${formatRWF(amount)}` : "Request"}
+        label={busy ? "Sending request…" : contact && amount > 0 ? `Request ${formatRWF(amount)}` : "Request"}
         disabled={!canRequest}
         onPress={handleRequest}
       />
