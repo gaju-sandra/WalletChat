@@ -200,7 +200,7 @@ meRouter.get("/transactions", async (req, res) => {
 // GET /me/messages → every message I sent or received, oldest first
 meRouter.get("/messages", async (req, res) => {
   const { rows } = await pool.query(
-    `SELECT id, sender_id, receiver_id, kind, text, amount, sent_at
+    `SELECT id, sender_id, receiver_id, kind, text, amount, contact_name, contact_phone, sent_at
        FROM messages
       WHERE sender_id = $1 OR receiver_id = $1
       ORDER BY sent_at`,
@@ -216,7 +216,7 @@ meRouter.get("/messages/:otherId", async (req, res) => {
     return res.status(400).json({ error: "otherId must be a positive whole number" });
   }
   const { rows } = await pool.query(
-    `SELECT id, sender_id, receiver_id, kind, text, amount, sent_at,
+    `SELECT id, sender_id, receiver_id, kind, text, amount, contact_name, contact_phone, sent_at,
             sender_id = $1 AS from_me
        FROM messages
       WHERE (sender_id = $1 AND receiver_id = $2)

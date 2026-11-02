@@ -38,6 +38,12 @@
         {
           "photosPermission": "WalletChat uses your photos so you can choose a profile picture."
         }
+      ],
+      [
+        "expo-contacts",
+        {
+          "contactsPermission": "WalletChat uses your contacts so you can share one in a chat."
+        }
       ]
     ],
     "experiments": {

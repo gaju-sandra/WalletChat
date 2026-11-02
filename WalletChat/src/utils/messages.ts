@@ -9,6 +9,8 @@ export function previewText(message: Message) {
       return `${message.fromMe ? "You sent" : "You received"} ${formatRWF(message.amount)}`;
     case "request":
       return `${message.fromMe ? "You requested" : "Requested"} ${formatRWF(message.amount)}`;
+    case "contact":
+      return `👤 ${message.contactName}`;
   }
 }
 

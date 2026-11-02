@@ -3,10 +3,61 @@ import { router } from "expo-router";
 import { ArrowUpRight, ArrowDownLeft, HandCoins } from "lucide-react-native";
 import { colors, fonts, radius, spacing } from "@/constants/theme";
 import type { Message } from "@/types/wallet";
-import { formatRWF, messageTime } from "@/utils/formats";
+import { formatRWF, initialsOf, messageTime } from "@/utils/formats";
+import { samePhone } from "@/utils/phone";
+import { useWallet } from "@/context/wallet";
+import { Avatar } from "@/components/avatar";
+
+// A shared contact: their name and number, with a button to chat with them or save them
+function ContactCard({ message }: { message: Extract<Message, { kind: "contact" }> }) {
+  const { contacts, profile } = useWallet();
+  const mine = message.fromMe;
+  const isMe = samePhone(message.contactPhone, profile.phone); // someone shared your own number
+  const saved = contacts.find((c) => samePhone(c.phone, message.contactPhone)); // already in your contacts?
+
+  return (
+    <View style={[styles.payment, styles.contactCard, mine ? styles.right : styles.left]}>
+      <View style={styles.paymentHeader}>
+        <Avatar
+          initials={initialsOf(message.contactName)}
+          tone={saved?.tone}
+          imageUrl={saved?.imageUrl}
+          size={40}
+        />
+        <View style={styles.contactTexts}>
+          <Text style={styles.contactName} numberOfLines={1}>
+            {message.contactName}
+          </Text>
+          <Text style={styles.paymentLabel}>{message.contactPhone}</Text>
+        </View>
+      </View>
+      {isMe ? null : saved ? (
+        <Pressable
+          style={styles.payButton}
+          onPress={() => router.push({ pathname: "/chat/[id]", params: { id: saved.id } })}
+        >
+          <Text style={styles.payText}>Message</Text>
+        </Pressable>
+      ) : (
+        <Pressable
+          style={styles.payButton}
+          // opens New contact with the name and number already filled in
+          onPress={() =>
+            router.push({ pathname: "/new-contact", params: { name: message.contactName, phone: message.contactPhone } })
+          }
+        >
+          <Text style={styles.payText}>Add contact</Text>
+        </Pressable>
+      )}
+      <Text style={styles.time}>{messageTime(new Date(message.sentAt))}</Text>
+    </View>
+  );
+}
 
 export function MessageBubble({ message }: { message: Message }) {
   const mine = message.fromMe;
+
+  if (message.kind === "contact") return <ContactCard message={message} />;
 
   if (message.kind === "payment") {
     const Icon = mine ? ArrowUpRight : ArrowDownLeft;
@@ -107,4 +158,7 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   payText: { fontFamily: fonts.semibold, fontSize: 14, color: "white" },
+  contactCard: { borderColor: colors.border },
+  contactTexts: { flex: 1, gap: 2 },
+  contactName: { fontFamily: fonts.semibold, fontSize: 15, color: colors.text },
 });

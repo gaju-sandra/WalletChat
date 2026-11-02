@@ -12,17 +12,20 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
-import { ChevronLeft, Send, Wallet } from "lucide-react-native";
+import * as Contacts from "expo-contacts";
+import { ArrowUpRight, ChevronLeft, HandCoins, Plus, Send, UserRound } from "lucide-react-native";
 import { colors, fonts, radius, spacing } from "@/constants/theme";
 import { Avatar } from "@/components/avatar";
 import { MessageBubble } from "@/components/message-bubble";
+import { AttachMenu } from "@/components/attach-menu";
 import type { Message } from "@/types/wallet";
 import { useWallet } from "@/context/wallet";
 
 export default function ChatScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { contacts, messages, sendMessage, markRead } = useWallet();
+  const { contacts, messages, sendMessage, markRead, shareContact } = useWallet();
   const [draft, setDraft] = useState("");
+  const [menuOpen, setMenuOpen] = useState(false); // the + menu
   const listRef = useRef<FlatList<Message>>(null);
 
   const contact = contacts.find((c) => c.id === id);
@@ -48,6 +51,28 @@ export default function ChatScreen() {
     } catch (error) {
       setDraft(text); // put the text back so nothing is lost
       Alert.alert("Message not sent", error instanceof Error ? error.message : String(error));
+    }
+  }
+
+  // "Share a contact": pick someone from the phone's contact list and send their name and number
+  async function handleShareContact() {
+    if (!contact) return;
+    try {
+      // The phone asks once whether WalletChat may see your contacts
+      const { granted } = await Contacts.requestPermissionsAsync();
+      if (!granted) {
+        return Alert.alert("No access to contacts", "Allow WalletChat to see your contacts in your phone's Settings.");
+      }
+      const picked = await Contacts.Contact.presentPicker(); // the phone's own contact list
+      if (!picked) return; // closed without choosing
+
+      const [name, phones] = await Promise.all([picked.getFullName(), picked.getPhones()]);
+      const number = phones.find((p) => p.number)?.number; // the first number they have
+      if (!number) return Alert.alert("No phone number", `${name || "This contact"} has no phone number to share.`);
+
+      await shareContact(contact.id, name || number, number);
+    } catch (error) {
+      Alert.alert("Contact not shared", error instanceof Error ? error.message : String(error));
     }
   }
 
@@ -102,12 +127,11 @@ export default function ChatScreen() {
 
         <View style={styles.composer}>
           <Pressable
-            style={[styles.payButton, !contact.onWalletChat && styles.sendDisabled]}
-            disabled={!contact.onWalletChat} // no account = nowhere for the money to go
-            accessibilityLabel={`Send money to ${contact.name}`}
-            onPress={() => router.push({ pathname: "/send", params: { contactId: contact.id } })}
+            style={styles.plusButton}
+            accessibilityLabel="More: share a contact, send or request money"
+            onPress={() => setMenuOpen(true)}
           >
-            <Wallet size={20} color={colors.text} />
+            <Plus size={22} color={colors.text} />
           </Pressable>
 
           <TextInput
@@ -130,6 +154,29 @@ export default function ChatScreen() {
           </Pressable>
         </View>
       </KeyboardAvoidingView>
+
+      {menuOpen ? (
+        <AttachMenu
+          onClose={() => setMenuOpen(false)}
+          options={[
+            { icon: UserRound, tone: "indigo", label: "Share a contact", onPress: handleShareContact },
+            {
+              icon: ArrowUpRight,
+              tone: "amber",
+              label: "Send money",
+              disabled: !contact.onWalletChat, // no account = nowhere for the money to go
+              hint: contact.onWalletChat ? undefined : `${contact.name} isn't on WalletChat yet`,
+              onPress: () => router.push({ pathname: "/send", params: { contactId: contact.id } }),
+            },
+            {
+              icon: HandCoins,
+              tone: "teal",
+              label: "Request money",
+              onPress: () => router.push({ pathname: "/request", params: { contactId: contact.id } }),
+            },
+          ]}
+        />
+      ) : null}
     </SafeAreaView>
   );
 }
@@ -171,11 +218,11 @@ const styles = StyleSheet.create({
     borderTopWidth: 1,
     borderTopColor: colors.border,
   },
-  payButton: {
+  plusButton: {
     width: 44,
     height: 44,
     borderRadius: radius.full,
-    backgroundColor: colors.accent,
+    backgroundColor: colors.background,
     alignItems: "center",
     justifyContent: "center",
   },

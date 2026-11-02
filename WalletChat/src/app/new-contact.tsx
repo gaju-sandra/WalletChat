@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { View, Text, StyleSheet, TextInput } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { colors, fonts, radius, spacing } from "@/constants/theme";
 import { Avatar } from "@/components/avatar";
 import { ScreenHeader } from "@/components/screen-header";
@@ -12,9 +12,11 @@ import { initialsOf } from "@/utils/formats";
 const digitsOnly = (text: string) => text.replace(/\D/g, "");
 
 export default function NewContactScreen() {
+  // name and phone come filled in when you tap "Add" on a contact card someone shared in a chat
+  const params = useLocalSearchParams<{ name?: string; phone?: string }>();
   const { contacts, addContact } = useWallet();
-  const [name, setName] = useState("");
-  const [phone, setPhone] = useState("");
+  const [name, setName] = useState(params.name ?? "");
+  const [phone, setPhone] = useState(params.phone ?? "");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false); // waiting for the server
 

@@ -10,6 +10,7 @@ import {
   sendRequest,
   sendTextMessage,
   sendTopUp,
+  sendContactCard,
   syncProfilePicture,
   sendTransfer,
   updateSettings,
@@ -30,6 +31,7 @@ type WalletContextValue = {
   sendMessage: (contactId: string, text: string) => Promise<void>;
   topUp: (amount: number, source: string) => Promise<void>;
   requestMoney: (contactId: string, amount: number) => Promise<void>;
+  shareContact: (contactId: string, name: string, phone: string) => Promise<void>;
   addContact: (name: string, phone: string) => Promise<Contact>;
   markRead: (contactId: string) => void;
   reload: () => Promise<void>; // fetch the newest data from the server (pull to refresh)
@@ -163,6 +165,12 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     await refresh();
   }
 
+  // Sends a contact card (someone's name and number) into the chat with contactId
+  async function shareContact(contactId: string, name: string, phone: string) {
+    await sendContactCard(contactId, name.trim(), phone);
+    await refresh();
+  }
+
   // Returns the new contact so the caller can open a chat with them straight away
   async function addContact(name: string, phone: string) {
     const contact = await createContact(name, phone);
@@ -245,6 +253,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         sendMessage,
         topUp,
         requestMoney,
+        shareContact,
         addContact,
         markRead,
         reload: refresh,

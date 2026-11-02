@@ -34,6 +34,8 @@ type ServerMessage = {
   kind: Message["kind"];
   text: string | null;
   amount: number | null;
+  contact_name: string | null;
+  contact_phone: string | null;
   sent_at: string;
 };
 type ServerTransaction = Omit<Transaction, "id" | "date"> & { id: number; created_at: string };
@@ -64,9 +66,14 @@ function toMessage(m: ServerMessage, meId: number): Message {
     fromMe,
     sentAt: m.sent_at,
   };
-  return m.kind === "text"
-    ? { ...base, kind: "text", text: m.text ?? "" }
-    : { ...base, kind: m.kind, amount: m.amount ?? 0 };
+  switch (m.kind) {
+    case "text":
+      return { ...base, kind: "text", text: m.text ?? "" };
+    case "contact":
+      return { ...base, kind: "contact", contactName: m.contact_name ?? "", contactPhone: m.contact_phone ?? "" };
+    default: // payment or request
+      return { ...base, kind: m.kind, amount: m.amount ?? 0 };
+  }
 }
 
 function toTransaction(t: ServerTransaction): Transaction {
@@ -137,6 +144,14 @@ export function sendTextMessage(contactId: string, text: string) {
 
 export function sendRequest(contactId: string, amount: number) {
   return api("/messages", { method: "POST", body: { receiverId: Number(contactId), kind: "request", amount } });
+}
+
+// Share someone's name and number in a chat, as a contact card
+export function sendContactCard(contactId: string, contactName: string, contactPhone: string) {
+  return api("/messages", {
+    method: "POST",
+    body: { receiverId: Number(contactId), kind: "contact", contactName, contactPhone },
+  });
 }
 
 export function sendTopUp(amount: number, source: string) {
