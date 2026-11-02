@@ -44,7 +44,8 @@ export default function HomeScreen() {
             {/* Tap the eye to hide or show the balance. The choice is saved on the server, so it stays after a restart */}
             <Pressable
               onPress={() => setHideBalance(!hideBalance)}
-              hitSlop={12}
+              hitSlop={8}
+              style={({ pressed }) => [styles.eyeButton, pressed && styles.eyePressed]}
               accessibilityRole="button"
               accessibilityLabel={hideBalance ? "Show balance" : "Hide balance"}
             >
@@ -190,7 +191,10 @@ const styles = StyleSheet.create({
   },
   cardTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   cardLabel: { fontFamily: fonts.regular, fontSize: 13, color: colors.onPrimaryMuted },
-  balance: { fontFamily: fonts.display, fontSize: 36, color: "white" },
+  eyeButton: { width: 32, height: 32, alignItems: "center", justifyContent: "center" }, // same size for both icons
+  eyePressed: { opacity: 0.5 }, // shows the tap was felt
+  // A fixed line height and same-width digits, so the card keeps its size when the balance hides or shows
+  balance: { fontFamily: fonts.display, fontSize: 36, lineHeight: 44, color: "white", fontVariant: ["tabular-nums"] },
   weekly: { fontFamily: fonts.medium, fontSize: 13, color: colors.accentOnPrimary },
   actions: { flexDirection: "row", gap: spacing.sm, marginTop: 14 },
   actionButton: {

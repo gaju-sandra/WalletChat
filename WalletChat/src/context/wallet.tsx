@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useState, type ReactNode } from "react";
+import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from "react";
 import { useAuth, useClerk, useUser } from "@clerk/expo";
 import type { Contact, Message, Profile, Transaction } from "@/types/wallet";
 import { ApiError, setTokenGetter } from "@/api/client";
@@ -65,6 +65,11 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
   // Goes up by one each time "Try again" is pressed, which makes the effect below run again
   const [attempt, setAttempt] = useState(0);
+
+  // Settings are saved one after another, in the order you tapped. Without this, tapping the eye quickly
+  // sends two saves at once, and they can reach the server in the wrong order (the screen says "shown",
+  // the database says "hidden").
+  const saveQueue = useRef<Promise<void>>(Promise.resolve());
 
   // Load when the app opens (and on every retry)
   useEffect(() => {
@@ -174,10 +179,15 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   // If saving fails, reload, so the screen goes back to what the server really has.
   function saveSettings(changes: Parameters<typeof updateSettings>[0], update: (prev: WalletData) => WalletData) {
     setData((prev) => prev && update(prev));
-    updateSettings(changes).catch((error) => {
-      console.warn("Couldn't save the setting:", messageOf(error));
-      refresh().catch(() => {});
-    });
+    saveQueue.current = saveQueue.current.then(() =>
+      updateSettings(changes).then(
+        () => {},
+        (error) => {
+          console.warn("Couldn't save the setting:", messageOf(error));
+          return refresh().catch(() => {});
+        },
+      ),
+    );
   }
 
   function updateName(name: string) {
