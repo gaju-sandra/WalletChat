@@ -1,7 +1,7 @@
 import { View, Text, StyleSheet, Pressable, ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
-import { Bell, ArrowUpRight, ArrowDownLeft, Plus } from "lucide-react-native";
+import { Bell, ArrowUpRight, ArrowDownLeft, Plus, Eye, EyeOff } from "lucide-react-native";
 import { colors, spacing, radius, fonts } from "@/constants/theme";
 import { Avatar } from "@/components/avatar";
 import { SectionHeader } from "@/components/section-header";
@@ -10,7 +10,8 @@ import { useWallet } from "@/context/wallet";
 import { firstName, formatRWF, initialsOf } from "@/utils/formats";
 
 export default function HomeScreen() {
-  const { balance, transactions, contacts, profile, hideBalance, notifications, seenNotificationIds } = useWallet();
+  const { balance, transactions, contacts, profile, hideBalance, setHideBalance, notifications, seenNotificationIds } =
+    useWallet();
   const recent = transactions.slice(0, 5);
   const unseenCount = notifications.filter((n) => !seenNotificationIds.includes(n.id)).length;
 
@@ -38,9 +39,23 @@ export default function HomeScreen() {
 
         {/* Balance card */}
         <View style={styles.card}>
-          <Text style={styles.cardLabel}>Total balance</Text>
-          <Text style={styles.balance}>{hideBalance ? "RWF ......" :formatRWF(balance)}</Text>
-          
+          <View style={styles.cardTop}>
+            <Text style={styles.cardLabel}>Total balance</Text>
+            {/* Tap the eye to hide or show the balance. The choice is saved on the server, so it stays after a restart */}
+            <Pressable
+              onPress={() => setHideBalance(!hideBalance)}
+              hitSlop={12}
+              accessibilityRole="button"
+              accessibilityLabel={hideBalance ? "Show balance" : "Hide balance"}
+            >
+              {hideBalance ? (
+                <Eye size={18} color={colors.onPrimaryMuted} />
+              ) : (
+                <EyeOff size={18} color={colors.onPrimaryMuted} />
+              )}
+            </Pressable>
+          </View>
+          <Text style={styles.balance}>{hideBalance ? "RWF ••••••" : formatRWF(balance)}</Text>
 
           <View style={styles.actions}>
             <Pressable
@@ -173,6 +188,7 @@ const styles = StyleSheet.create({
     padding: spacing.xl,
     gap: 6,
   },
+  cardTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   cardLabel: { fontFamily: fonts.regular, fontSize: 13, color: colors.onPrimaryMuted },
   balance: { fontFamily: fonts.display, fontSize: 36, color: "white" },
   weekly: { fontFamily: fonts.medium, fontSize: 13, color: colors.accentOnPrimary },

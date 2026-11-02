@@ -6,7 +6,6 @@ import {
   Pressable,
   ScrollView,
   TextInput,
-  Switch,
   KeyboardAvoidingView,
   Keyboard,
   Platform,
@@ -14,7 +13,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useClerk } from "@clerk/expo";
-import { Mail, Phone, Wallet, EyeOff, Pencil, LogOut } from "lucide-react-native";
+import { Mail, Phone, Wallet, Pencil, LogOut } from "lucide-react-native";
 import { colors, fonts, radius, spacing } from "@/constants/theme";
 import { Avatar } from "@/components/avatar";
 import { SectionHeader } from "@/components/section-header";
@@ -23,7 +22,7 @@ import { useWallet } from "@/context/wallet";
 import { formatRWF, initialsOf } from "@/utils/formats";
 
 export default function ProfileScreen() {
-  const { profile, updateName, monthlyBudget, setMonthlyBudget, hideBalance, setHideBalance } = useWallet();
+  const { profile, updateName, monthlyBudget, setMonthlyBudget } = useWallet();
   const { signOut } = useClerk(); // ends the Clerk session: the app goes back to the sign-in screen
 
   // Local "draft" state: what the user is typing before they press Save
@@ -124,6 +123,7 @@ export default function ProfileScreen() {
                 tone="amber"
                 label="Monthly budget"
                 value={formatRWF(monthlyBudget)}
+                isLast={!editingBudget} // the edit box below becomes the last row while it's open
                 right={
                   <Pressable onPress={toggleEditBudget} hitSlop={8}>
                     <Text style={styles.link}>{editingBudget ? "Cancel" : "Edit"}</Text>
@@ -147,22 +147,6 @@ export default function ProfileScreen() {
                   </Pressable>
                 </View>
               ) : null}
-
-              <SettingsRow
-                icon={EyeOff}
-                tone="indigo"
-                label="Hide balance"
-                value="Show •••••• on the Home screen"
-                isLast
-                right={
-                  <Switch
-                    value={hideBalance}
-                    onValueChange={setHideBalance}
-                    trackColor={{ false: colors.border, true: colors.primary }}
-                    thumbColor="white"
-                  />
-                }
-              />
             </View>
           </View>
 
@@ -194,7 +178,7 @@ const styles = StyleSheet.create({
   name: { fontFamily: fonts.display, fontSize: 22, color: colors.text },
   subtitle: { fontFamily: fonts.regular, fontSize: 14, color: colors.textMuted },
   editRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, alignSelf: "stretch" },
-  budgetEditRow: { paddingVertical: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.divider },
+  budgetEditRow: { paddingVertical: spacing.md },
   input: {
     flex: 1,
     height: 44,
