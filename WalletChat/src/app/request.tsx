@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { StyleSheet } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { router } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { colors, spacing } from "@/constants/theme";
 import { ScreenHeader } from "@/components/screen-header";
 import { RecipientPicker } from "@/components/recipient-picker";
@@ -14,8 +14,10 @@ import { formatRWF } from "@/utils/formats";
 import { goBack } from "@/utils/navigation";
 
 export default function RequestScreen() {
+  // contactId comes from "Request" on a contact's info screen, so that person is already chosen
+  const params = useLocalSearchParams<{ contactId?: string }>();
   const { contacts, requestMoney } = useWallet();
-  const [contactId, setContactId] = useState<string | undefined>();
+  const [contactId, setContactId] = useState(params.contactId);
   const [digits, setDigits] = useState("");
   const [requested, setRequested] = useState(false);
   const [busy, setBusy] = useState(false); // waiting for the server

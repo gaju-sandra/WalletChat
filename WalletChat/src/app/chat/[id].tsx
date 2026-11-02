@@ -65,8 +65,21 @@ export default function ChatScreen() {
         <Pressable onPress={goBack} style={styles.backButton} accessibilityLabel="Back to chats">
           <ChevronLeft size={22} color={colors.text} />
         </Pressable>
-        <Avatar initials={contact.initials} tone={contact.tone} size={40} />
-        <Text style={styles.name}>{contact.name}</Text>
+        {/* Tap the photo or name to open their contact info, like in other chat apps */}
+        <Pressable
+          style={({ pressed }) => [styles.who, pressed && styles.whoPressed]}
+          onPress={() => router.push({ pathname: "/contact/[id]", params: { id: contact.id } })}
+          accessibilityRole="button"
+          accessibilityLabel={`Contact info for ${contact.name}`}
+        >
+          <Avatar initials={contact.initials} tone={contact.tone} size={40} />
+          <View style={styles.whoTexts}>
+            <Text style={styles.name} numberOfLines={1}>
+              {contact.name}
+            </Text>
+            <Text style={styles.whoHint}>Tap for contact info</Text>
+          </View>
+        </Pressable>
       </View>
 
       {!contact.onWalletChat ? (
@@ -135,6 +148,10 @@ const styles = StyleSheet.create({
     borderBottomColor: colors.border,
   },
   backButton: { width: 44, height: 44, alignItems: "center", justifyContent: "center" },
+  who: { flex: 1, flexDirection: "row", alignItems: "center", gap: spacing.md },
+  whoPressed: { opacity: 0.6 },
+  whoTexts: { flex: 1 },
+  whoHint: { fontFamily: fonts.regular, fontSize: 12, color: colors.textMuted },
   name: { fontFamily: fonts.semibold, fontSize: 16, color: colors.text },
   notice: {
     paddingHorizontal: spacing.lg,

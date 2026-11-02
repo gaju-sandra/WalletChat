@@ -39,6 +39,7 @@ function RootNavigator() {
         <Stack.Screen name="new-contact" />
         <Stack.Screen name="notifications" />
         <Stack.Screen name="chat/[id]" />
+        <Stack.Screen name="contact/[id]" />
       </Stack.Protected>
       <Stack.Protected guard={!isSignedIn}>
         <Stack.Screen name="sign-in" />
