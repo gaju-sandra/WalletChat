@@ -36,7 +36,8 @@
       [
         "expo-image-picker",
         {
-          "photosPermission": "WalletChat uses your photos so you can choose a profile picture."
+          "photosPermission": "WalletChat uses your photos so you can choose a profile picture or send a photo in a chat.",
+          "cameraPermission": "WalletChat uses the camera so you can take a photo and send it in a chat."
         }
       ],
       [

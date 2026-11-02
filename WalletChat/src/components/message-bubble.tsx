@@ -1,4 +1,5 @@
-import { View, Text, StyleSheet, Pressable } from "react-native";
+import { useState } from "react";
+import { View, Text, StyleSheet, Pressable, Modal } from "react-native";
 import { router } from "expo-router";
 import { ArrowUpRight, ArrowDownLeft, HandCoins } from "lucide-react-native";
 import { colors, fonts, radius, spacing } from "@/constants/theme";
@@ -7,6 +8,7 @@ import { formatRWF, initialsOf, messageTime } from "@/utils/formats";
 import { samePhone } from "@/utils/phone";
 import { useWallet } from "@/context/wallet";
 import { Avatar } from "@/components/avatar";
+import { ChatPhoto } from "@/components/chat-photo";
 
 // A shared contact: their name and number, with a button to chat with them or save them
 function ContactCard({ message }: { message: Extract<Message, { kind: "contact" }> }) {
@@ -54,10 +56,36 @@ function ContactCard({ message }: { message: Extract<Message, { kind: "contact" 
   );
 }
 
+// A photo in the chat. Tap it to see it full screen; tap again to close.
+function PhotoBubble({ message }: { message: Extract<Message, { kind: "photo" }> }) {
+  const [fullScreen, setFullScreen] = useState(false);
+
+  return (
+    <>
+      <Pressable
+        style={[styles.photoBubble, message.fromMe ? styles.right : styles.left]}
+        onPress={() => setFullScreen(true)}
+        accessibilityRole="imagebutton"
+        accessibilityLabel={message.fromMe ? "Photo you sent" : "Photo you received"}
+      >
+        <ChatPhoto url={message.photoUrl} style={styles.photo} />
+        <Text style={styles.photoTime}>{messageTime(new Date(message.sentAt))}</Text>
+      </Pressable>
+
+      <Modal visible={fullScreen} transparent animationType="fade" onRequestClose={() => setFullScreen(false)}>
+        <Pressable style={styles.viewer} onPress={() => setFullScreen(false)} accessibilityLabel="Close photo">
+          <ChatPhoto url={message.photoUrl} style={styles.viewerPhoto} contentFit="contain" />
+        </Pressable>
+      </Modal>
+    </>
+  );
+}
+
 export function MessageBubble({ message }: { message: Message }) {
   const mine = message.fromMe;
 
   if (message.kind === "contact") return <ContactCard message={message} />;
+  if (message.kind === "photo") return <PhotoBubble message={message} />;
 
   if (message.kind === "payment") {
     const Icon = mine ? ArrowUpRight : ArrowDownLeft;
@@ -159,6 +187,23 @@ const styles = StyleSheet.create({
   },
   payText: { fontFamily: fonts.semibold, fontSize: 14, color: "white" },
   contactCard: { borderColor: colors.border },
+  photoBubble: { width: 220, height: 260, borderRadius: 18, overflow: "hidden" },
+  photo: { flex: 1 },
+  // the time sits on the photo, white on a dark see-through label so it's readable on any picture
+  photoTime: {
+    position: "absolute",
+    right: spacing.sm,
+    bottom: spacing.sm,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: radius.sm,
+    backgroundColor: "rgba(0,0,0,0.45)",
+    fontFamily: fonts.regular,
+    fontSize: 11,
+    color: "white",
+  },
+  viewer: { flex: 1, backgroundColor: "black", justifyContent: "center" },
+  viewerPhoto: { width: "100%", height: "80%", backgroundColor: "black" },
   contactTexts: { flex: 1, gap: 2 },
   contactName: { fontFamily: fonts.semibold, fontSize: 15, color: colors.text },
 });

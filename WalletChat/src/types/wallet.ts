@@ -33,7 +33,8 @@ export type Message =
   | (MessageBase & { kind: "text"; text: string })
   | (MessageBase & { kind: "payment"; amount: number })
   | (MessageBase & { kind: "request"; amount: number })
-  | (MessageBase & { kind: "contact"; contactName: string; contactPhone: string }); // a shared contact card
+  | (MessageBase & { kind: "contact"; contactName: string; contactPhone: string }) // a shared contact card
+  | (MessageBase & { kind: "photo"; photoUrl: string }); // a picture; the address needs the sign-in ticket
 
 export type Profile = {
   name: string;

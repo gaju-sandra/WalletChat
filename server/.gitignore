@@ -5,3 +5,6 @@ node_modules/
 
 # Clerk keys (written by `clerk env pull --file .env.local`)
 .env*.local
+
+# Photos people send in chats (private: never commit them)
+uploads/

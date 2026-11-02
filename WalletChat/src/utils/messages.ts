@@ -11,6 +11,8 @@ export function previewText(message: Message) {
       return `${message.fromMe ? "You requested" : "Requested"} ${formatRWF(message.amount)}`;
     case "contact":
       return `👤 ${message.contactName}`;
+    case "photo":
+      return "📷 Photo";
   }
 }
 

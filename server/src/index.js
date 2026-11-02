@@ -9,6 +9,9 @@ import { topUpsRouter } from "./routes/top-ups.js";
 
 const app = express();
 
+// Photos arrive as text (base64) inside JSON, which is much bigger than a normal request, so this one
+// route may send up to 12 MB. It must come before the line below, which allows only 100 KB.
+app.use("/messages/photo", express.json({ limit: "12mb" }));
 app.use(express.json()); // read JSON request bodies into req.body
 
 // Allow the Expo web preview (a different port) to call this API while developing
@@ -44,6 +47,9 @@ app.use((req, res) => res.status(404).json({ error: `No route for ${req.method} 
 
 // Any error thrown in a route ends up here (Express 5 also catches errors from async routes)
 app.use((error, req, res, next) => {
+  // Problems with the request itself (too big: 413, broken JSON: 400) are the sender's mistake, not a crash
+  if (error.type === "entity.too.large") return res.status(413).json({ error: "That request is too big." });
+  if (error.type === "entity.parse.failed") return res.status(400).json({ error: "The request body isn't valid JSON." });
   console.error(error);
   res.status(500).json({ error: "Something went wrong on the server" });
 });

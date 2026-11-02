@@ -4,7 +4,7 @@
 import { palette, type Tone } from "@/constants/theme";
 import type { Contact, Message, Profile, Transaction } from "@/types/wallet";
 import { initialsOf } from "@/utils/formats";
-import { api } from "./client";
+import { api, API_URL } from "./client";
 
 // ---- What the server sends back ----
 
@@ -71,6 +71,8 @@ function toMessage(m: ServerMessage, meId: number): Message {
       return { ...base, kind: "text", text: m.text ?? "" };
     case "contact":
       return { ...base, kind: "contact", contactName: m.contact_name ?? "", contactPhone: m.contact_phone ?? "" };
+    case "photo":
+      return { ...base, kind: "photo", photoUrl: `${API_URL}/messages/${m.id}/photo` };
     default: // payment or request
       return { ...base, kind: m.kind, amount: m.amount ?? 0 };
   }
@@ -144,6 +146,11 @@ export function sendTextMessage(contactId: string, text: string) {
 
 export function sendRequest(contactId: string, amount: number) {
   return api("/messages", { method: "POST", body: { receiverId: Number(contactId), kind: "request", amount } });
+}
+
+// photo: the picture as text, "data:image/jpeg;base64,…"
+export function sendPhotoMessage(contactId: string, photo: string) {
+  return api("/messages/photo", { method: "POST", body: { receiverId: Number(contactId), photo } });
 }
 
 // Share someone's name and number in a chat, as a contact card

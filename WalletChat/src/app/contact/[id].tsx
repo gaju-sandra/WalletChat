@@ -5,6 +5,7 @@ import { ArrowDownLeft, ArrowUpRight, HandCoins, MessageCircle, Phone, type Luci
 import { colors, fonts, palette, radius, spacing } from "@/constants/theme";
 import { Avatar } from "@/components/avatar";
 import { ScreenHeader } from "@/components/screen-header";
+import { ChatPhoto } from "@/components/chat-photo";
 import { useWallet } from "@/context/wallet";
 import { formatRWF, messageTime } from "@/utils/formats";
 import { goBack } from "@/utils/navigation";
@@ -54,6 +55,12 @@ export default function ContactInfoScreen() {
   const payments = messages
     .filter((m) => m.contactId === contact.id && m.kind === "payment")
     .reverse();
+  // The newest 6 photos you sent each other
+  const photos = messages
+    .filter((m) => m.contactId === contact.id && m.kind === "photo")
+    .reverse()
+    .slice(0, 6);
+
   let sent = 0;
   let received = 0;
   for (const p of payments) {
@@ -103,6 +110,18 @@ export default function ContactInfoScreen() {
           />
           <Action icon={Phone} label="Call" onPress={handleCall} disabled={!contact.phone} />
         </View>
+
+        {/* Photos you sent each other (only shown once there are some) */}
+        {photos.length > 0 ? (
+          <View style={styles.card}>
+            <Text style={styles.cardTitle}>Photos shared</Text>
+            <View style={styles.photoGrid}>
+              {photos.map((p) =>
+                p.kind === "photo" ? <ChatPhoto key={p.id} url={p.photoUrl} style={styles.photoThumb} /> : null,
+              )}
+            </View>
+          </View>
+        ) : null}
 
         {/* Money between you */}
         <View style={styles.card}>
@@ -186,6 +205,8 @@ const styles = StyleSheet.create({
     backgroundColor: colors.surface,
   },
   cardTitle: { fontFamily: fonts.semibold, fontSize: 15, color: colors.text },
+  photoGrid: { flexDirection: "row", flexWrap: "wrap", gap: spacing.sm },
+  photoThumb: { width: "31%", aspectRatio: 1, borderRadius: radius.md }, // 3 in a row
   totals: { flexDirection: "row", gap: spacing.md },
   total: { flex: 1, gap: 2 },
   totalValue: { fontFamily: fonts.display, fontSize: 18, color: colors.text },

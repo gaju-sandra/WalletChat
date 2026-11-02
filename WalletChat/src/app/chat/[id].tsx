@@ -13,7 +13,8 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import * as Contacts from "expo-contacts";
-import { ArrowUpRight, ChevronLeft, HandCoins, Plus, Send, UserRound } from "lucide-react-native";
+import * as ImagePicker from "expo-image-picker";
+import { ArrowUpRight, Camera, ChevronLeft, HandCoins, Image as ImageIcon, Plus, Send, UserRound } from "lucide-react-native";
 import { colors, fonts, radius, spacing } from "@/constants/theme";
 import { Avatar } from "@/components/avatar";
 import { MessageBubble } from "@/components/message-bubble";
@@ -23,9 +24,10 @@ import { useWallet } from "@/context/wallet";
 
 export default function ChatScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { contacts, messages, sendMessage, markRead, shareContact } = useWallet();
+  const { contacts, messages, sendMessage, markRead, shareContact, sendPhoto } = useWallet();
   const [draft, setDraft] = useState("");
   const [menuOpen, setMenuOpen] = useState(false); // the + menu
+  const [sendingPhoto, setSendingPhoto] = useState(false); // a photo is uploading
   const listRef = useRef<FlatList<Message>>(null);
 
   const contact = contacts.find((c) => c.id === id);
@@ -73,6 +75,34 @@ export default function ChatScreen() {
       await shareContact(contact.id, name || number, number);
     } catch (error) {
       Alert.alert("Contact not shared", error instanceof Error ? error.message : String(error));
+    }
+  }
+
+  // "Photo" and "Camera": choose a picture or take one, then send it
+  async function handlePhoto(source: "library" | "camera") {
+    if (!contact) return;
+    // base64: the picture as text, which is how it travels to our server. quality 0.6 keeps it small.
+    const options: ImagePicker.ImagePickerOptions = { mediaTypes: ["images"], quality: 0.6, base64: true };
+    try {
+      let result: ImagePicker.ImagePickerResult;
+      if (source === "camera") {
+        // The camera always needs permission first (choosing from the library doesn't on iPhone)
+        const { granted } = await ImagePicker.requestCameraPermissionsAsync();
+        if (!granted) return Alert.alert("No access to the camera", "Allow WalletChat to use the camera in your phone's Settings.");
+        result = await ImagePicker.launchCameraAsync(options);
+      } else {
+        result = await ImagePicker.launchImageLibraryAsync(options);
+      }
+      if (result.canceled) return;
+      const photo = result.assets[0];
+      if (!photo.base64) return Alert.alert("Couldn't read that photo", "Please try another one.");
+
+      setSendingPhoto(true);
+      await sendPhoto(contact.id, `data:${photo.mimeType ?? "image/jpeg"};base64,${photo.base64}`);
+    } catch (error) {
+      Alert.alert("Photo not sent", error instanceof Error ? error.message : String(error));
+    } finally {
+      setSendingPhoto(false);
     }
   }
 
@@ -125,10 +155,12 @@ export default function ChatScreen() {
           onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: true })}
         />
 
+        {sendingPhoto ? <Text style={styles.sending}>Sending photo…</Text> : null}
+
         <View style={styles.composer}>
           <Pressable
             style={styles.plusButton}
-            accessibilityLabel="More: share a contact, send or request money"
+            accessibilityLabel="More: photo, camera, contact, money"
             onPress={() => setMenuOpen(true)}
           >
             <Plus size={22} color={colors.text} />
@@ -159,6 +191,8 @@ export default function ChatScreen() {
         <AttachMenu
           onClose={() => setMenuOpen(false)}
           options={[
+            { icon: ImageIcon, tone: "green", label: "Photo", onPress: () => handlePhoto("library") },
+            { icon: Camera, tone: "red", label: "Camera", onPress: () => handlePhoto("camera") },
             { icon: UserRound, tone: "indigo", label: "Share a contact", onPress: handleShareContact },
             {
               icon: ArrowUpRight,
@@ -245,5 +279,13 @@ const styles = StyleSheet.create({
     justifyContent: "center",
   },
   sendDisabled: { opacity: 0.4 },
+  sending: {
+    fontFamily: fonts.regular,
+    fontSize: 12,
+    color: colors.textMuted,
+    textAlign: "right",
+    paddingHorizontal: spacing.lg,
+    paddingBottom: spacing.xs,
+  },
   empty: { fontFamily: fonts.regular, fontSize: 15, color: colors.textMuted, padding: spacing.xl },
 });
