@@ -72,7 +72,7 @@ export default function ChatScreen() {
           accessibilityRole="button"
           accessibilityLabel={`Contact info for ${contact.name}`}
         >
-          <Avatar initials={contact.initials} tone={contact.tone} size={40} />
+          <Avatar initials={contact.initials} tone={contact.tone} imageUrl={contact.imageUrl} size={40} />
           <View style={styles.whoTexts}>
             <Text style={styles.name} numberOfLines={1}>
               {contact.name}

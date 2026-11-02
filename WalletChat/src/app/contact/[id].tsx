@@ -76,7 +76,7 @@ export default function ContactInfoScreen() {
 
         {/* Who they are */}
         <View style={styles.hero}>
-          <Avatar initials={contact.initials} tone={contact.tone} size={96} />
+          <Avatar initials={contact.initials} tone={contact.tone} imageUrl={contact.imageUrl} size={96} />
           <Text style={styles.name}>{contact.name}</Text>
           {contact.phone ? <Text style={styles.muted}>{contact.phone}</Text> : null}
           <View style={[styles.status, !contact.onWalletChat && styles.statusOff]}>

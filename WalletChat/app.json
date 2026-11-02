@@ -32,7 +32,13 @@
           "imageWidth": 160
         }
       ],
-      "expo-secure-store"
+      "expo-secure-store",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "WalletChat uses your photos so you can choose a profile picture."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

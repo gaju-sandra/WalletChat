@@ -20,9 +20,13 @@ export default function HomeScreen() {
       <ScrollView contentContainerStyle={styles.screen} showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View style={styles.header}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{initialsOf(profile.name)}</Text>
-          </View>
+          {profile.imageUrl ? (
+            <Avatar initials={initialsOf(profile.name)} imageUrl={profile.imageUrl} size={44} />
+          ) : (
+            <View style={styles.avatar}>
+              <Text style={styles.avatarText}>{initialsOf(profile.name)}</Text>
+            </View>
+          )}
           <View style={styles.headerText}>
             <Text style={styles.greeting}>Welcome to</Text>
             <Text style={styles.name}>WalletChat</Text>
@@ -106,7 +110,7 @@ export default function HomeScreen() {
                 style={styles.quickItem}
                 onPress={() => router.push({ pathname: "/send", params: { contactId: contact.id } })}
               >
-                <Avatar initials={contact.initials} tone={contact.tone} />
+                <Avatar initials={contact.initials} tone={contact.tone} imageUrl={contact.imageUrl} />
                 <Text style={styles.quickName} numberOfLines={1}>
                   {firstName(contact.name)}
                 </Text>

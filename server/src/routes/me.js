@@ -8,7 +8,7 @@ import { requireUser } from "../auth.js";
 // so nobody can read or change someone else's wallet by changing a number.
 export const meRouter = Router();
 
-const USER_COLUMNS = "id, name, phone, email, balance, monthly_budget, hide_balance, created_at";
+const USER_COLUMNS = "id, name, phone, email, image_url, balance, monthly_budget, hide_balance, created_at";
 
 // POST /me  { "name": "Sandra Gaju", "phone": "0788 000 000" }
 // Creates your wallet the first time you sign in. Your email comes from Clerk (already verified with a
@@ -81,10 +81,24 @@ meRouter.patch("/", async (req, res) => {
   res.json(rows[0]);
 });
 
+// POST /me/picture → copy my profile picture's address from Clerk (call it after changing the picture)
+// The app uploads the picture to Clerk itself. The server then asks Clerk for the address instead of
+// taking one from the app, so nobody can point their picture at some other website.
+meRouter.post("/picture", async (req, res) => {
+  const clerkUser = await clerkClient.users.getUser(getAuth(req).userId);
+  // Clerk gives everyone a generated placeholder image; hasImage is only true for a real uploaded photo
+  const imageUrl = clerkUser.hasImage ? clerkUser.imageUrl : null;
+  const { rows } = await pool.query(`UPDATE users SET image_url = $2 WHERE id = $1 RETURNING ${USER_COLUMNS}`, [
+    req.user.id,
+    imageUrl,
+  ]);
+  res.json(rows[0]);
+});
+
 // GET /me/contacts → my chat list, most recent conversation first
 meRouter.get("/contacts", async (req, res) => {
   const { rows } = await pool.query(
-    `SELECT u.id, u.name, u.phone, c.unread, c.added_at,
+    `SELECT u.id, u.name, u.phone, u.image_url, c.unread, c.added_at,
             u.clerk_user_id IS NOT NULL AS on_walletchat, -- true = they have an account and can use money
             -- latest of "when added" and "newest message either way"; GREATEST skips NULLs
             GREATEST(c.added_at, MAX(m.sent_at)) AS last_activity
@@ -120,7 +134,7 @@ meRouter.post("/contacts", async (req, res) => {
     const { rows: people } = await client.query(
       `INSERT INTO users (name, phone) VALUES ($1, $2)
        ON CONFLICT (phone) DO UPDATE SET phone = EXCLUDED.phone
-       RETURNING id, name, phone, clerk_user_id IS NOT NULL AS on_walletchat`,
+       RETURNING id, name, phone, image_url, clerk_user_id IS NOT NULL AS on_walletchat`,
       [name, phone],
     );
     const person = people[0];

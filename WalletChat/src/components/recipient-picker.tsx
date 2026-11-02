@@ -20,7 +20,7 @@ export function RecipientPicker({ contactId, onChange, label, prompt, onlyOnWall
   if (contact) {
     return (
       <View style={styles.card}>
-        <Avatar initials={contact.initials} tone={contact.tone} size={44} />
+        <Avatar initials={contact.initials} tone={contact.tone} imageUrl={contact.imageUrl} size={44} />
         <View style={styles.cardText}>
           <Text style={styles.label}>{label}</Text>
           <Text style={styles.name}>{contact.name}</Text>
@@ -38,7 +38,7 @@ export function RecipientPicker({ contactId, onChange, label, prompt, onlyOnWall
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
         {choices.map((c) => (
           <Pressable key={c.id} style={styles.item} onPress={() => onChange(c.id)}>
-            <Avatar initials={c.initials} tone={c.tone} />
+            <Avatar initials={c.initials} tone={c.tone} imageUrl={c.imageUrl} />
             <Text style={styles.itemName} numberOfLines={1}>
               {firstName(c.name)}
             </Text>

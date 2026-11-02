@@ -8,6 +8,7 @@ export type Contact = {
   initials: string;
   tone: Tone;
   phone?: string;
+  imageUrl?: string; // their profile picture; without one the app shows their initials
   addedAt?: string; // ISO date, set when you add someone (so a new chat can go to the top)
   onWalletChat: boolean; // false = saved by phone number but no account yet, so money can't be sent to them
 };
@@ -37,4 +38,5 @@ export type Profile = {
   name: string;
   email: string;
   phone: string;
+  imageUrl?: string; // my profile picture (stored by Clerk)
 };

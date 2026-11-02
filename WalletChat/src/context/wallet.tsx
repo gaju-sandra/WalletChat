@@ -10,6 +10,7 @@ import {
   sendRequest,
   sendTextMessage,
   sendTopUp,
+  syncProfilePicture,
   sendTransfer,
   updateSettings,
   type WalletData,
@@ -41,6 +42,8 @@ type WalletContextValue = {
   setMonthlyBudget: (amount: number) => void;
   hideBalance: boolean;
   setHideBalance: (hide: boolean) => void;
+  // A picture as a "data:image/jpeg;base64,…" text, or null to remove it
+  changePicture: (picture: string | null) => Promise<void>;
 };
 
 const WalletContext = createContext<WalletContextValue | null>(null);
@@ -204,6 +207,15 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     saveSettings({ hideBalance: hide }, (prev) => ({ ...prev, hideBalance: hide }));
   }
 
+  // The picture itself is uploaded to Clerk (which stores and serves images); then our server copies
+  // its address so contacts can see it, and we reload to show it
+  async function changePicture(picture: string | null) {
+    if (!user) throw new Error("You're not signed in.");
+    await user.setProfileImage({ file: picture });
+    await syncProfilePicture();
+    await refresh();
+  }
+
   // Worked out fresh on every render from the data above, never stored
   const notifications = buildNotifications({
     contacts: data.contacts,
@@ -245,6 +257,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         setMonthlyBudget,
         hideBalance: data.hideBalance,
         setHideBalance,
+        changePicture,
       }}
     >
       {children}

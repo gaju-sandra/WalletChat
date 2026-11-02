@@ -27,7 +27,7 @@ function ChatRow({ contact }: { contact: Contact }) {
       style={({ pressed }) => [styles.row, pressed && styles.rowPressed]}
       onPress={() => router.push({ pathname: "/chat/[id]", params: { id: contact.id } })}
     >
-      <Avatar initials={contact.initials} tone={contact.tone} size={48} />
+      <Avatar initials={contact.initials} tone={contact.tone} imageUrl={contact.imageUrl} size={48} />
 
       <View style={styles.texts}>
         <Text style={styles.name}>{contact.name}</Text>

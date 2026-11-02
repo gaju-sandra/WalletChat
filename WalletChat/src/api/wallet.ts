@@ -13,6 +13,7 @@ type ServerUser = {
   name: string;
   phone: string;
   email: string | null;
+  image_url: string | null;
   balance: number;
   monthly_budget: number;
   hide_balance: boolean;
@@ -21,6 +22,7 @@ type ServerContact = {
   id: number;
   name: string;
   phone: string;
+  image_url: string | null;
   unread: number;
   added_at: string;
   on_walletchat: boolean;
@@ -47,6 +49,7 @@ function toContact(c: ServerContact): Contact {
     initials: initialsOf(c.name),
     tone: tones[(c.id + 3) % tones.length], // same colour for the same person every time
     phone: c.phone,
+    imageUrl: c.image_url ?? undefined,
     addedAt: c.added_at,
     onWalletChat: c.on_walletchat,
   };
@@ -101,7 +104,7 @@ export async function fetchWallet(): Promise<WalletData> {
   ]);
 
   return {
-    profile: { name: user.name, email: user.email ?? "", phone: user.phone },
+    profile: { name: user.name, email: user.email ?? "", phone: user.phone, imageUrl: user.image_url ?? undefined },
     balance: user.balance,
     monthlyBudget: user.monthly_budget,
     hideBalance: user.hide_balance,
@@ -117,6 +120,11 @@ export async function fetchWallet(): Promise<WalletData> {
 // First sign-in: create my wallet with my name and phone number (my email comes from Clerk)
 export function createProfile(name: string, phone: string) {
   return api("/me", { method: "POST", body: { name, phone } });
+}
+
+// After changing my picture on Clerk: the server copies its new address so my contacts see it too
+export function syncProfilePicture() {
+  return api("/me/picture", { method: "POST" });
 }
 
 export function sendTransfer(contactId: string, amount: number) {
