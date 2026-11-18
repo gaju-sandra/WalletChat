@@ -150,7 +150,8 @@ export function sendRequest(contactId: string, amount: number) {
 
 // photo: the picture as text, "data:image/jpeg;base64,…"
 export function sendPhotoMessage(contactId: string, photo: string) {
-  return api("/messages/photo", { method: "POST", body: { receiverId: Number(contactId), photo } });
+  // A photo is a few MB, which takes longer to send than a normal request, so allow a minute
+  return api("/messages/photo", { method: "POST", body: { receiverId: Number(contactId), photo }, timeoutMs: 60_000 });
 }
 
 // Share someone's name and number in a chat, as a contact card

@@ -33,11 +33,21 @@ export function setTokenGetter(getter: TokenGetter) {
   getToken = getter;
 }
 
-type RequestOptions = { method?: "GET" | "POST" | "PATCH"; body?: unknown };
+type RequestOptions = {
+  method?: "GET" | "POST" | "PATCH";
+  body?: unknown;
+  timeoutMs?: number; // give up after this long (photo uploads need more time)
+};
+
+// Without a limit, a request to a server that never answers can wait for minutes, with a spinner turning
+const DEFAULT_TIMEOUT_MS = 10_000;
 
 // One place for every call to the server: adds the sign-in ticket, builds the request, and turns
 // failures into an error we can show on screen (like the server's "Not enough balance")
-export async function api<T>(path: string, { method = "GET", body }: RequestOptions = {}): Promise<T> {
+export async function api<T>(
+  path: string,
+  { method = "GET", body, timeoutMs = DEFAULT_TIMEOUT_MS }: RequestOptions = {},
+): Promise<T> {
   const token = await getToken(); // a fresh ticket: Clerk renews it before it expires
   const headers: Record<string, string> = {};
   if (token) headers.Authorization = `Bearer ${token}`;
@@ -49,9 +59,15 @@ export async function api<T>(path: string, { method = "GET", body }: RequestOpti
       method,
       headers,
       body: body === undefined ? undefined : JSON.stringify(body),
+      signal: AbortSignal.timeout(timeoutMs), // cancels the request when the time is up
     });
-  } catch {
-    // fetch only throws when it couldn't reach the server at all
+  } catch (error) {
+    // fetch only throws when it got no answer at all: the time ran out, or the server can't be reached.
+    // React Native's fetch calls a cancelled request "AbortError" (browsers say "TimeoutError").
+    const name = error instanceof Error ? error.name : "";
+    if (name === "AbortError" || name === "TimeoutError") {
+      throw new Error(`The server at ${API_URL} isn't answering. Check it's running, then try again.`);
+    }
     throw new Error(`Can't reach the server at ${API_URL}. Is it running, and on the same Wi-Fi?`);
   }
 
