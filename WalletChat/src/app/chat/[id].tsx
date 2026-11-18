@@ -9,6 +9,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Alert,
+  Keyboard,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
@@ -165,7 +166,11 @@ export default function ChatScreen() {
           <Pressable
             style={styles.plusButton}
             accessibilityLabel="More: photo, camera, contact, money"
-            onPress={() => setMenuOpen(true)}
+            onPress={() => {
+              // The menu opens at the bottom of the screen, where the keyboard is, so close the keyboard first
+              Keyboard.dismiss();
+              setMenuOpen(true);
+            }}
           >
             <Plus size={22} color={colors.text} />
           </Pressable>
