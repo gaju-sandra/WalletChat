@@ -1,11 +1,12 @@
-import express from "express";
+import express, { type NextFunction, type Request, type Response } from "express";
 import { clerkMiddleware } from "@clerk/express";
-import { pool } from "./db.js";
-import { requireUser } from "./auth.js";
-import { meRouter } from "./routes/me.js";
-import { transfersRouter } from "./routes/transfers.js";
-import { messagesRouter } from "./routes/messages.js";
-import { topUpsRouter } from "./routes/top-ups.js";
+import { pool } from "./db.ts";
+import { requireUser } from "./auth.ts";
+import { messageOf } from "./errors.ts";
+import { meRouter } from "./routes/me.ts";
+import { transfersRouter } from "./routes/transfers.ts";
+import { messagesRouter } from "./routes/messages.ts";
+import { topUpsRouter } from "./routes/top-ups.ts";
 
 const app = express();
 
@@ -33,7 +34,7 @@ app.get("/health", async (req, res) => {
     const { rows } = await pool.query("SELECT now() AS database_time");
     res.json({ ok: true, databaseTime: rows[0].database_time });
   } catch (error) {
-    res.status(503).json({ ok: false, error: `Can't reach the database: ${error.message}` });
+    res.status(503).json({ ok: false, error: `Can't reach the database: ${messageOf(error)}` });
   }
 });
 
@@ -45,8 +46,9 @@ app.use("/top-ups", requireUser, topUpsRouter);
 
 app.use((req, res) => res.status(404).json({ error: `No route for ${req.method} ${req.path}` }));
 
-// Any error thrown in a route ends up here (Express 5 also catches errors from async routes)
-app.use((error, req, res, next) => {
+// Any error thrown in a route ends up here (Express 5 also catches errors from async routes).
+// body-parser, which reads the JSON bodies, puts a `type` on its errors.
+app.use((error: { type?: string }, req: Request, res: Response, next: NextFunction) => {
   // Problems with the request itself (too big: 413, broken JSON: 400) are the sender's mistake, not a crash
   if (error.type === "entity.too.large") return res.status(413).json({ error: "That request is too big." });
   if (error.type === "entity.parse.failed") return res.status(400).json({ error: "The request body isn't valid JSON." });

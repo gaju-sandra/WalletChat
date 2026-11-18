@@ -2,8 +2,9 @@ import { randomUUID } from "node:crypto";
 import { mkdir, unlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { Router } from "express";
-import { pool } from "../db.js";
-import { normalizePhone } from "../phone.js";
+import { pool } from "../db.ts";
+import { normalizePhone } from "../phone.ts";
+import { isForeignKeyError } from "../errors.ts";
 
 export const messagesRouter = Router();
 
@@ -12,7 +13,7 @@ const UPLOADS_DIR = path.resolve(import.meta.dirname, "../../uploads");
 const MAX_PHOTO_BYTES = 8 * 1024 * 1024; // 8 MB
 
 // The first bytes of a file say what it really is, whatever its name claims. Only real pictures are kept.
-function photoExtension(bytes) {
+function photoExtension(bytes: Buffer) {
   if (bytes[0] === 0xff && bytes[1] === 0xd8 && bytes[2] === 0xff) return "jpg";
   if (bytes.subarray(0, 4).toString("hex") === "89504e47") return "png";
   if (bytes.subarray(0, 4).toString() === "RIFF" && bytes.subarray(8, 12).toString() === "WEBP") return "webp";
@@ -21,7 +22,7 @@ function photoExtension(bytes) {
 }
 
 // Adds a photo message and gives the receiver one more unread, all or nothing
-async function savePhotoMessage(senderId, receiverId, fileName) {
+async function savePhotoMessage(senderId: number, receiverId: number, fileName: string) {
   const client = await pool.connect();
   try {
     await client.query("BEGIN");
@@ -71,7 +72,7 @@ messagesRouter.post("/photo", async (req, res) => {
     res.status(201).json(message);
   } catch (error) {
     await unlink(path.join(UPLOADS_DIR, fileName)).catch(() => {}); // no message, so no file either
-    if (error.code === "23503") return res.status(404).json({ error: "Receiver not found" });
+    if (isForeignKeyError(error)) return res.status(404).json({ error: "Receiver not found" });
     throw error;
   }
 });
@@ -150,7 +151,7 @@ messagesRouter.post("/", async (req, res) => {
   } catch (error) {
     await client.query("ROLLBACK");
     // 23503 = foreign key violation: senderId or receiverId isn't a real user
-    if (error.code === "23503") return res.status(404).json({ error: "Receiver not found" });
+    if (isForeignKeyError(error)) return res.status(404).json({ error: "Receiver not found" });
     throw error;
   } finally {
     client.release();

@@ -1,0 +1,15 @@
+{
+  // TypeScript only CHECKS the code here (npm run typecheck). Node runs the .ts files itself,
+  // by ignoring the type labels, so there is no build step and no dist/ folder.
+  "compilerOptions": {
+    "target": "esnext",
+    "module": "nodenext",
+    "strict": true,
+    "noEmit": true,
+    "skipLibCheck": true,
+    "allowImportingTsExtensions": true, // imports say "./db.ts", which is what Node needs
+    "erasableSyntaxOnly": true, // only syntax Node can simply remove (no enums etc.)
+    "verbatimModuleSyntax": true // types must be imported with `import type`
+  },
+  "include": ["src", "scripts"]
+}

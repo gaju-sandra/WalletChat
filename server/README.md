@@ -17,8 +17,8 @@ send more than your balance").
 | `db/migrations/` | The tables, as numbered SQL files. Each runs once, in order. |
 | `db/seed.sql` | Development data (Sandra, Aline, Eric, Grace, Kevin and their history). |
 | `scripts/` | `migrate`, `seed` and `reset` commands. |
-| `src/db.js` | The connection to PostgreSQL. |
-| `src/index.js` | Starts the API. |
+| `src/db.ts` | The connection to PostgreSQL. |
+| `src/index.ts` | Starts the API. |
 | `src/routes/` | The API's addresses (`/users/...`, `/transfers`). |
 
 ## First-time setup

@@ -1,7 +1,10 @@
 import { Router } from "express";
-import { pool } from "../db.js";
+import { pool } from "../db.ts";
 
 export const transfersRouter = Router();
+
+// The columns the transfer reads from each of the two users
+type Wallet = { id: number; name: string; balance: number; clerk_user_id: string | null };
 
 // POST /transfers  { "toUserId": 2, "amount": 5000 }
 // Sends money from me (the signed-in person, req.user) to someone else. Five changes that must all happen, or none:
@@ -24,7 +27,7 @@ transfersRouter.post("/", async (req, res) => {
 
     // FOR UPDATE locks both rows until COMMIT, so two transfers at the same moment can't both spend the
     // same money. Locking in id order (ORDER BY id) stops two transfers waiting on each other forever.
-    const { rows: people } = await client.query(
+    const { rows: people } = await client.query<Wallet>(
       "SELECT id, name, balance, clerk_user_id FROM users WHERE id = ANY($1) ORDER BY id FOR UPDATE",
       [[fromUserId, toUserId]],
     );
@@ -76,7 +79,7 @@ transfersRouter.post("/", async (req, res) => {
     res.status(201).json({ message: messageRows[0], senderBalance: sender.balance - amount });
   } catch (error) {
     await client.query("ROLLBACK"); // undo everything done since BEGIN
-    throw error; // the error handler in index.js turns this into a 500 response
+    throw error; // the error handler in index.ts turns this into a 500 response
   } finally {
     client.release(); // give the connection back to the pool
   }

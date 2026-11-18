@@ -2,7 +2,8 @@
 // PostgreSQL remembers which ones ran in the schema_migrations table, like SQLite's user_version on the phone.
 import { readdir, readFile } from "node:fs/promises";
 import { pathToFileURL } from "node:url";
-import { pool } from "../src/db.js";
+import { pool } from "../src/db.ts";
+import { messageOf } from "../src/errors.ts";
 
 const folder = new URL("../db/migrations/", import.meta.url);
 
@@ -32,7 +33,7 @@ export async function migrate() {
       console.log(`✔ ran ${file}`);
     } catch (error) {
       await client.query("ROLLBACK");
-      throw new Error(`Migration ${file} failed: ${error.message}`);
+      throw new Error(`Migration ${file} failed: ${messageOf(error)}`);
     } finally {
       client.release();
     }
@@ -40,11 +41,11 @@ export async function migrate() {
   console.log("Database is up to date.");
 }
 
-// Run directly with `npm run db:migrate` (reset.js imports it instead)
+// Run directly with `npm run db:migrate` (reset.ts imports it instead)
 if (import.meta.url === pathToFileURL(process.argv[1]).href) {
   migrate()
     .catch((error) => {
-      console.error(error.message);
+      console.error(messageOf(error));
       process.exitCode = 1;
     })
     .finally(() => pool.end());

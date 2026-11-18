@@ -1,8 +1,8 @@
 import { Router } from "express";
 import { clerkClient, getAuth } from "@clerk/express";
-import { pool } from "../db.js";
-import { normalizePhone } from "../phone.js";
-import { requireUser } from "../auth.js";
+import { pool } from "../db.ts";
+import { normalizePhone } from "../phone.ts";
+import { requireUser } from "../auth.ts";
 
 // Everything here is about "me": the signed-in person. There is no user id in the address any more,
 // so nobody can read or change someone else's wallet by changing a number.
@@ -16,7 +16,6 @@ const USER_COLUMNS = "id, name, phone, email, image_url, balance, monthly_budget
 meRouter.post("/", async (req, res) => {
   const { userId } = getAuth(req);
   if (!userId) return res.status(401).json({ error: "Please sign in.", code: "signed_out" });
-
   const name = typeof req.body?.name === "string" ? req.body.name.trim() : "";
   const phone = normalizePhone(req.body?.phone);
   if (!name) return res.status(400).json({ error: "Enter your name." });
@@ -85,7 +84,9 @@ meRouter.patch("/", async (req, res) => {
 // The app uploads the picture to Clerk itself. The server then asks Clerk for the address instead of
 // taking one from the app, so nobody can point their picture at some other website.
 meRouter.post("/picture", async (req, res) => {
-  const clerkUser = await clerkClient.users.getUser(getAuth(req).userId);
+  const { userId } = getAuth(req);
+  if (!userId) return res.status(401).json({ error: "Please sign in.", code: "signed_out" });
+  const clerkUser = await clerkClient.users.getUser(userId);
   // Clerk gives everyone a generated placeholder image; hasImage is only true for a real uploaded photo
   const imageUrl = clerkUser.hasImage ? clerkUser.imageUrl : null;
   const { rows } = await pool.query(`UPDATE users SET image_url = $2 WHERE id = $1 RETURNING ${USER_COLUMNS}`, [
