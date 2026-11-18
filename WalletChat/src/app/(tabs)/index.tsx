@@ -1,4 +1,5 @@
-import { View, Text, StyleSheet, Pressable, ScrollView } from "react-native";
+import { useState } from "react";
+import { View, Text, StyleSheet, Pressable, ScrollView, ActivityIndicator } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
 import { Bell, ArrowUpRight, ArrowDownLeft, Plus, Eye, EyeOff } from "lucide-react-native";
@@ -12,7 +13,17 @@ import { firstName, formatRWF, initialsOf } from "@/utils/formats";
 export default function HomeScreen() {
   const { balance, transactions, contacts, profile, hideBalance, setHideBalance, notifications, seenNotificationIds } =
     useWallet();
+  const [isLoading, setIsLoading] = useState(false); // saving the hide/show choice on the server
   const recent = transactions.slice(0, 5);
+
+  async function toggleBalance() {
+    setIsLoading(true);
+    try {
+      await setHideBalance(!hideBalance); // the balance hides/shows at once; this waits for the save
+    } finally {
+      setIsLoading(false); // runs whether the save worked or not
+    }
+  }
   const unseenCount = notifications.filter((n) => !seenNotificationIds.includes(n.id)).length;
 
   return (
@@ -47,11 +58,13 @@ export default function HomeScreen() {
             <Text style={styles.cardLabel}>Total balance</Text>
             {/* Tap the eye to hide or show the balance. The choice is saved on the server, so it stays after a restart */}
             <Pressable
-              onPress={() => setHideBalance(!hideBalance)}
+              onPress={toggleBalance}
+              disabled={isLoading} // no second tap until the first one is saved
               hitSlop={8}
               style={({ pressed }) => [styles.eyeButton, pressed && styles.eyePressed]}
               accessibilityRole="button"
               accessibilityLabel={hideBalance ? "Show balance" : "Hide balance"}
+              accessibilityState={{ busy: isLoading }}
             >
               {hideBalance ? (
                 <Eye size={18} color={colors.onPrimaryMuted} />
@@ -60,7 +73,14 @@ export default function HomeScreen() {
               )}
             </Pressable>
           </View>
-          <Text style={styles.balance}>{hideBalance ? "RWF ••••••" : formatRWF(balance)}</Text>
+          {/* While saving, a spinner takes the amount's place. The box keeps the amount's height, so the card doesn't move */}
+          <View style={styles.balanceBox}>
+            {isLoading ? (
+              <ActivityIndicator size="large" color="white" accessibilityLabel="Saving" />
+            ) : (
+              <Text style={styles.balance}>{hideBalance ? "RWF ••••••" : formatRWF(balance)}</Text>
+            )}
+          </View>
 
           <View style={styles.actions}>
             <Pressable
@@ -197,6 +217,7 @@ const styles = StyleSheet.create({
   cardLabel: { fontFamily: fonts.regular, fontSize: 13, color: colors.onPrimaryMuted },
   eyeButton: { width: 32, height: 32, alignItems: "center", justifyContent: "center" }, // same size for both icons
   eyePressed: { opacity: 0.5 }, // shows the tap was felt
+  balanceBox: { height: 44, justifyContent: "center", alignItems: "flex-start" }, // same height as the amount's line
   // A fixed line height and same-width digits, so the card keeps its size when the balance hides or shows
   balance: { fontFamily: fonts.display, fontSize: 36, lineHeight: 44, color: "white", fontVariant: ["tabular-nums"] },
   weekly: { fontFamily: fonts.medium, fontSize: 13, color: colors.accentOnPrimary },

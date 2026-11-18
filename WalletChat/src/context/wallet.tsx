@@ -45,7 +45,7 @@ type WalletContextValue = {
   monthlyBudget: number;
   setMonthlyBudget: (amount: number) => void;
   hideBalance: boolean;
-  setHideBalance: (hide: boolean) => void;
+  setHideBalance: (hide: boolean) => Promise<void>; // finishes once the server has saved it
   // A picture as a "data:image/jpeg;base64,…" text, or null to remove it
   changePicture: (picture: string | null) => Promise<void>;
 };
@@ -195,6 +195,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
   // Settings change on screen straight away ("optimistic update") and are saved in the background.
   // If saving fails, reload, so the screen goes back to what the server really has.
+  // Returns a promise that finishes when this save is done, so a screen can show it's saving.
   function saveSettings(changes: Parameters<typeof updateSettings>[0], update: (prev: WalletData) => WalletData) {
     setData((prev) => prev && update(prev));
     saveQueue.current = saveQueue.current.then(() =>
@@ -206,6 +207,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         },
       ),
     );
+    return saveQueue.current;
   }
 
   function updateName(name: string) {
@@ -219,7 +221,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   }
 
   function setHideBalance(hide: boolean) {
-    saveSettings({ hideBalance: hide }, (prev) => ({ ...prev, hideBalance: hide }));
+    return saveSettings({ hideBalance: hide }, (prev) => ({ ...prev, hideBalance: hide }));
   }
 
   // The picture itself is uploaded to Clerk (which stores and serves images); then our server copies
