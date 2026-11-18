@@ -5,6 +5,7 @@ import { colors, fonts, radius, spacing } from "@/constants/theme";
 import { ScreenHeader } from "@/components/screen-header";
 import { TransactionRow } from "@/components/transaction-row";
 import { useWallet } from "@/context/wallet";
+import { usePullToRefresh } from "@/components/pull-to-refresh";
 import type { Transaction } from "@/types/wallet";
 import { dayLabel } from "@/utils/formats";
 
@@ -31,6 +32,7 @@ function groupByDay(transactions: Transaction[]) {
 
 export default function ActivityScreen() {
   const { transactions } = useWallet();
+  const refreshControl = usePullToRefresh();
   const [filter, setFilter] = useState<Filter>("all");
 
   const visible = transactions.filter((tx) => {
@@ -62,7 +64,11 @@ export default function ActivityScreen() {
         </View>
       </View>
 
-      <ScrollView contentContainerStyle={styles.list} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.list}
+        showsVerticalScrollIndicator={false}
+        refreshControl={refreshControl}
+      >
         {groups.length === 0 ? <Text style={styles.empty}>Nothing here yet.</Text> : null}
 
         {groups.map((group) => (

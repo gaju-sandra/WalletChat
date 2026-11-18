@@ -165,6 +165,12 @@ export function sendTopUp(amount: number, source: string) {
   return api("/top-ups", { method: "POST", body: { amount, source } });
 }
 
+// Does someone with a WalletChat account use this number? (asked before adding them)
+export async function lookupPhone(phone: string) {
+  const { onWalletChat } = await api<{ onWalletChat: boolean }>(`/me/lookup?phone=${encodeURIComponent(phone)}`);
+  return onWalletChat;
+}
+
 export async function createContact(name: string, phone: string) {
   return toContact(await api<ServerContact>("/me/contacts", { method: "POST", body: { name, phone } }));
 }

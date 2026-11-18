@@ -6,6 +6,7 @@ import {
   createContact,
   createProfile,
   fetchWallet,
+  lookupPhone,
   markChatRead,
   sendRequest,
   sendTextMessage,
@@ -36,6 +37,7 @@ type WalletContextValue = {
   shareContact: (contactId: string, name: string, phone: string) => Promise<void>;
   sendPhoto: (contactId: string, photo: string) => Promise<void>;
   addContact: (name: string, phone: string) => Promise<Contact>;
+  isOnWalletChat: (phone: string) => Promise<boolean>; // does an account use this number?
   markRead: (contactId: string) => void;
   reload: () => Promise<void>; // fetch the newest data from the server (pull to refresh)
   notifications: AppNotification[];
@@ -288,6 +290,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         shareContact,
         sendPhoto,
         addContact,
+        isOnWalletChat: lookupPhone, // only asks, changes nothing, so no refresh needed
         markRead,
         reload: refresh,
         notifications,

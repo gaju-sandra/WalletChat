@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { View, Text, StyleSheet, TextInput } from "react-native";
+import { View, Text, StyleSheet, TextInput, Alert } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
 import { colors, fonts, radius, spacing } from "@/constants/theme";
@@ -14,7 +14,7 @@ const digitsOnly = (text: string) => text.replace(/\D/g, "");
 export default function NewContactScreen() {
   // name and phone come filled in when you tap "Add" on a contact card someone shared in a chat
   const params = useLocalSearchParams<{ name?: string; phone?: string }>();
-  const { contacts, addContact } = useWallet();
+  const { contacts, addContact, isOnWalletChat } = useWallet();
   const [name, setName] = useState(params.name ?? "");
   const [phone, setPhone] = useState(params.phone ?? "");
   const [error, setError] = useState("");
@@ -32,6 +32,28 @@ export default function NewContactScreen() {
     const exists = contacts.some((c) => c.phone && digitsOnly(c.phone).slice(-9) === phoneDigits.slice(-9));
     if (exists) return setError("This number is already in your contacts.");
 
+    setBusy(true);
+    try {
+      // Nobody uses this number? It may be a typo, so ask before adding it
+      if (!(await isOnWalletChat(phone))) {
+        setBusy(false);
+        return Alert.alert(
+          "Not on WalletChat",
+          `No WalletChat account uses ${phone.trim()}. Check the number, or add them anyway: you can chat now and send money once they sign up.`,
+          [
+            { text: "Check number", style: "cancel" },
+            { text: "Add anyway", onPress: () => save() },
+          ],
+        );
+      }
+      await save();
+    } catch (error) {
+      setError(error instanceof Error ? error.message : String(error));
+      setBusy(false);
+    }
+  }
+
+  async function save() {
     setBusy(true);
     try {
       const contact = await addContact(name, phone); // the server checks the number too

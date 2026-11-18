@@ -8,11 +8,13 @@ import { Avatar } from "@/components/avatar";
 import { SectionHeader } from "@/components/section-header";
 import { TransactionRow } from "@/components/transaction-row";
 import { useWallet } from "@/context/wallet";
+import { usePullToRefresh } from "@/components/pull-to-refresh";
 import { firstName, formatRWF, initialsOf } from "@/utils/formats";
 
 export default function HomeScreen() {
   const { balance, transactions, contacts, profile, hideBalance, setHideBalance, notifications, seenNotificationIds } =
     useWallet();
+  const refreshControl = usePullToRefresh(); // pull down → newest balance and activity
   const [isLoading, setIsLoading] = useState(false); // saving the hide/show choice on the server
   const recent = transactions.slice(0, 5);
 
@@ -28,7 +30,11 @@ export default function HomeScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
-      <ScrollView contentContainerStyle={styles.screen} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.screen}
+        showsVerticalScrollIndicator={false}
+        refreshControl={refreshControl}
+      >
         {/* Header */}
         <View style={styles.header}>
           {profile.imageUrl ? (

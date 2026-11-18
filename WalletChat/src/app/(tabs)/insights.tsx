@@ -2,6 +2,7 @@ import { View, Text, StyleSheet, ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { colors, fonts, palette, radius, spacing } from "@/constants/theme";
 import { useWallet } from "@/context/wallet";
+import { usePullToRefresh } from "@/components/pull-to-refresh";
 import { WeeklyChart } from "@/components/weekly-charts";
 import { CategoryBar } from "@/components/category-bar";
 import { formatRWF } from "@/utils/formats";
@@ -15,6 +16,7 @@ import {
 
 export default function InsightsScreen() {
   const { transactions, monthlyBudget} = useWallet();
+  const refreshControl = usePullToRefresh();
 
   const monthTransactions = transactionsThisMonth(transactions);
   const { spent, received } = totals(monthTransactions);
@@ -29,7 +31,11 @@ export default function InsightsScreen() {
 
   return (
     <SafeAreaView style={styles.safe} edges={["top"]}>
-      <ScrollView contentContainerStyle={styles.screen} showsVerticalScrollIndicator={false}>
+      <ScrollView
+        contentContainerStyle={styles.screen}
+        showsVerticalScrollIndicator={false}
+        refreshControl={refreshControl}
+      >
         {/* Header */}
         <View style={styles.header}>
           <Text style={styles.title}>Insights</Text>
