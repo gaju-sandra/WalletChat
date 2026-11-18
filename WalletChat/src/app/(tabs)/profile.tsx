@@ -11,18 +11,19 @@ import {
   Platform,
   Alert,
   ActivityIndicator,
+  Share,
   type ScrollViewInstance,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useClerk } from "@clerk/expo";
 import * as ImagePicker from "expo-image-picker";
-import { Mail, Phone, Wallet, Pencil, LogOut, Camera } from "lucide-react-native";
+import { Mail, Phone, Wallet, Pencil, LogOut, Camera, UserPlus, ChevronRight } from "lucide-react-native";
 import { colors, fonts, radius, spacing } from "@/constants/theme";
 import { Avatar } from "@/components/avatar";
 import { SectionHeader } from "@/components/section-header";
 import { SettingsRow } from "@/components/settings-row";
 import { useWallet } from "@/context/wallet";
-import { formatRWF, initialsOf } from "@/utils/formats";
+import { firstName, formatRWF, initialsOf } from "@/utils/formats";
 
 export default function ProfileScreen() {
   const { profile, updateName, monthlyBudget, setMonthlyBudget, changePicture } = useWallet();
@@ -44,6 +45,20 @@ export default function ProfileScreen() {
     });
     return () => subscription.remove(); // stop listening when editing ends
   }, [editingBudget]);
+
+  // Opens the phone's own share menu (WhatsApp, SMS, email…) with an invitation. Your number is in it, so
+  // when they sign up they can add you straight away, without typos.
+  async function handleInvite() {
+    try {
+      await Share.share({
+        message:
+          `Hi! I'm using WalletChat to chat and send money. Join me, and add me with my number: ${profile.phone}\n` +
+          `– ${firstName(profile.name)}`,
+      });
+    } catch (error) {
+      Alert.alert("Couldn't open sharing", error instanceof Error ? error.message : String(error));
+    }
+  }
 
   // Uploads (or removes) the picture and shows a spinner on the avatar meanwhile
   async function savePicture(picture: string | null) {
@@ -204,6 +219,28 @@ export default function ProfileScreen() {
                   </Pressable>
                 </View>
               ) : null}
+            </View>
+          </View>
+
+          {/* Friends */}
+          <View style={styles.section}>
+            <SectionHeader title="Friends" />
+            <View style={styles.listCard}>
+              <Pressable
+                onPress={handleInvite}
+                style={({ pressed }) => pressed && styles.pressed}
+                accessibilityRole="button"
+                accessibilityHint="Opens the share menu, to send an invitation by WhatsApp, SMS or another app"
+              >
+                <SettingsRow
+                  icon={UserPlus}
+                  tone="indigo"
+                  label="Invite friends"
+                  value="Money only goes to people on WalletChat"
+                  right={<ChevronRight size={18} color={colors.textMuted} />}
+                  isLast
+                />
+              </Pressable>
             </View>
           </View>
 
