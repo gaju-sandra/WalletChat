@@ -20,6 +20,7 @@ import {
 import { ServerStatus } from "@/components/server-status";
 import { ProfileSetup } from "@/components/profile-setup";
 import { buildNotifications, type AppNotification } from "@/utils/notifications";
+import { describeClerkError } from "@/utils/clerk-errors";
 
 type WalletContextValue = {
   balance: number;
@@ -45,7 +46,7 @@ type WalletContextValue = {
   monthlyBudget: number;
   setMonthlyBudget: (amount: number) => void;
   hideBalance: boolean;
-  setHideBalance: (hide: boolean) => void;
+  setHideBalance: (hide: boolean) => Promise<void>; // finishes once the server has saved it
   // A picture as a "data:image/jpeg;base64,…" text, or null to remove it
   changePicture: (picture: string | null) => Promise<void>;
 };
@@ -108,6 +109,19 @@ export function WalletProvider({ children }: { children: ReactNode }) {
       cancelled = true;
     };
   }, [attempt, getToken, signUpDetails?.name, signUpDetails?.phone]);
+
+  // Your picture lives in two places: Clerk (the image itself) and our database (its address, so your
+  // contacts see it). If a change stopped halfway, they differ: then copy Clerk's address over, once.
+  const clerkImage = user?.hasImage ? user.imageUrl : undefined;
+  const savedImage = data?.profile.imageUrl;
+  const syncedImage = useRef<string | null>(null); // the Clerk picture we already tried to copy
+  useEffect(() => {
+    if (!data || clerkImage === savedImage || syncedImage.current === (clerkImage ?? "")) return;
+    syncedImage.current = clerkImage ?? "";
+    syncProfilePicture()
+      .then(() => fetchWallet())
+      .then(setData, (error) => console.warn("Couldn't copy the profile picture:", messageOf(error)));
+  }, [data, clerkImage, savedImage]);
 
   // No wallet yet and it couldn't be created automatically: ask for the details, then load it
   if (needsProfile) {
@@ -195,6 +209,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
   // Settings change on screen straight away ("optimistic update") and are saved in the background.
   // If saving fails, reload, so the screen goes back to what the server really has.
+  // Returns a promise that finishes when this save is done, so a screen can show it's saving.
   function saveSettings(changes: Parameters<typeof updateSettings>[0], update: (prev: WalletData) => WalletData) {
     setData((prev) => prev && update(prev));
     saveQueue.current = saveQueue.current.then(() =>
@@ -206,6 +221,7 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         },
       ),
     );
+    return saveQueue.current;
   }
 
   function updateName(name: string) {
@@ -219,15 +235,24 @@ export function WalletProvider({ children }: { children: ReactNode }) {
   }
 
   function setHideBalance(hide: boolean) {
-    saveSettings({ hideBalance: hide }, (prev) => ({ ...prev, hideBalance: hide }));
+    return saveSettings({ hideBalance: hide }, (prev) => ({ ...prev, hideBalance: hide }));
   }
 
   // The picture itself is uploaded to Clerk (which stores and serves images); then our server copies
   // its address so contacts can see it, and we reload to show it
   async function changePicture(picture: string | null) {
     if (!user) throw new Error("You're not signed in.");
-    await user.setProfileImage({ file: picture });
-    await syncProfilePicture();
+    // Each step says what failed, so the message shows where it stopped
+    try {
+      await user.setProfileImage({ file: picture });
+    } catch (error) {
+      throw new Error(`Clerk didn't accept the picture: ${describeClerkError(error).message}`);
+    }
+    try {
+      await syncProfilePicture();
+    } catch (error) {
+      throw new Error(`The picture was uploaded, but our server couldn't save it: ${messageOf(error)}`);
+    }
     await refresh();
   }
 

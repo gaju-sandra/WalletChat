@@ -12,7 +12,7 @@ import {
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router, useLocalSearchParams } from "expo-router";
-import * as Contacts from "expo-contacts";
+import * as Contacts from "expo-contacts/legacy";
 import * as ImagePicker from "expo-image-picker";
 import { ArrowUpRight, Camera, ChevronLeft, HandCoins, Image as ImageIcon, Plus, Send, UserRound } from "lucide-react-native";
 import { colors, fonts, radius, spacing } from "@/constants/theme";
@@ -60,16 +60,20 @@ export default function ChatScreen() {
   async function handleShareContact() {
     if (!contact) return;
     try {
-      // The phone asks once whether WalletChat may see your contacts
-      const { granted } = await Contacts.requestPermissionsAsync();
-      if (!granted) {
-        return Alert.alert("No access to contacts", "Allow WalletChat to see your contacts in your phone's Settings.");
+      // Android needs permission to read the chosen contact. On iPhone the picker hands it over without any.
+      if (Platform.OS === "android") {
+        const { granted } = await Contacts.requestPermissionsAsync();
+        if (!granted) {
+          return Alert.alert("No access to contacts", "Allow WalletChat to see your contacts in your phone's Settings.");
+        }
       }
-      const picked = await Contacts.Contact.presentPicker(); // the phone's own contact list
+      // The legacy picker gives us the chosen contact's details directly. The newer Contact.presentPicker()
+      // only gives an id and looks it up afterwards, which fails on iPhones with limited contact access.
+      const picked = await Contacts.presentContactPickerAsync(); // the phone's own contact list
       if (!picked) return; // closed without choosing
 
-      const [name, phones] = await Promise.all([picked.getFullName(), picked.getPhones()]);
-      const number = phones.find((p) => p.number)?.number; // the first number they have
+      const name = picked.name;
+      const number = picked.phoneNumbers?.find((p) => p.number)?.number; // the first number they have
       if (!number) return Alert.alert("No phone number", `${name || "This contact"} has no phone number to share.`);
 
       await shareContact(contact.id, name || number, number);
