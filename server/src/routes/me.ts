@@ -116,6 +116,16 @@ meRouter.get("/contacts", async (req, res) => {
   res.json(rows);
 });
 
+// GET /me/lookup?phone=0788555123 → { "onWalletChat": true }
+// Asked before adding a contact, so the app can warn about a number nobody uses (often a typo).
+// It only says yes or no, never whose number it is.
+meRouter.get("/lookup", async (req, res) => {
+  const phone = normalizePhone(req.query.phone);
+  if (!phone) return res.status(400).json({ error: "Enter a valid phone number, e.g. 0788 123 456." });
+  const { rows } = await pool.query("SELECT 1 FROM users WHERE phone = $1 AND clerk_user_id IS NOT NULL", [phone]);
+  res.json({ onWalletChat: rows.length > 0 });
+});
+
 // POST /me/contacts  { "name": "Diane Mukamana", "phone": "0788 555 123" }
 // If someone already uses that number, they are added; otherwise a row is created for them,
 // waiting for them to sign up (clerk_user_id stays NULL until then).
