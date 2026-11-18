@@ -9,16 +9,18 @@ type RecipientPickerProps = {
   onChange: (contactId: string | undefined) => void;
   label: string; // shown above the name once chosen, e.g. "To"
   prompt: string; // shown above the list, e.g. "Choose who to send money to"
+  onlyOnWalletChat?: boolean; // list only people with an account (money can't go to the others)
 };
 
-export function RecipientPicker({ contactId, onChange, label, prompt }: RecipientPickerProps) {
+export function RecipientPicker({ contactId, onChange, label, prompt, onlyOnWalletChat = false }: RecipientPickerProps) {
   const { contacts } = useWallet();
+  const choices = onlyOnWalletChat ? contacts.filter((c) => c.onWalletChat) : contacts;
   const contact = contacts.find((c) => c.id === contactId);
 
   if (contact) {
     return (
       <View style={styles.card}>
-        <Avatar initials={contact.initials} tone={contact.tone} size={44} />
+        <Avatar initials={contact.initials} tone={contact.tone} imageUrl={contact.imageUrl} size={44} />
         <View style={styles.cardText}>
           <Text style={styles.label}>{label}</Text>
           <Text style={styles.name}>{contact.name}</Text>
@@ -34,9 +36,9 @@ export function RecipientPicker({ contactId, onChange, label, prompt }: Recipien
     <View style={styles.picker}>
       <Text style={styles.label}>{prompt}</Text>
       <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.row}>
-        {contacts.map((c) => (
+        {choices.map((c) => (
           <Pressable key={c.id} style={styles.item} onPress={() => onChange(c.id)}>
-            <Avatar initials={c.initials} tone={c.tone} />
+            <Avatar initials={c.initials} tone={c.tone} imageUrl={c.imageUrl} />
             <Text style={styles.itemName} numberOfLines={1}>
               {firstName(c.name)}
             </Text>

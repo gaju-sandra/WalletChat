@@ -2,3 +2,9 @@ node_modules/
 
 # Holds the database password
 .env
+
+# Clerk keys (written by `clerk env pull --file .env.local`)
+.env*.local
+
+# Photos people send in chats (private: never commit them)
+uploads/

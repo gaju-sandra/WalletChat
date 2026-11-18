@@ -6,14 +6,17 @@ import {
   Pressable,
   ScrollView,
   TextInput,
-  Switch,
   KeyboardAvoidingView,
   Keyboard,
   Platform,
+  Alert,
+  ActivityIndicator,
+  type ScrollViewInstance,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { router } from "expo-router";
-import { Mail, Phone, Wallet, EyeOff, Pencil, Database } from "lucide-react-native";
+import { useClerk } from "@clerk/expo";
+import * as ImagePicker from "expo-image-picker";
+import { Mail, Phone, Wallet, Pencil, LogOut, Camera } from "lucide-react-native";
 import { colors, fonts, radius, spacing } from "@/constants/theme";
 import { Avatar } from "@/components/avatar";
 import { SectionHeader } from "@/components/section-header";
@@ -22,14 +25,16 @@ import { useWallet } from "@/context/wallet";
 import { formatRWF, initialsOf } from "@/utils/formats";
 
 export default function ProfileScreen() {
-  const { profile, updateName, monthlyBudget, setMonthlyBudget, hideBalance, setHideBalance } = useWallet();
+  const { profile, updateName, monthlyBudget, setMonthlyBudget, changePicture } = useWallet();
+  const { signOut } = useClerk(); // ends the Clerk session: the app goes back to the sign-in screen
 
   // Local "draft" state: what the user is typing before they press Save
   const [editingName, setEditingName] = useState(false);
   const [nameDraft, setNameDraft] = useState(profile.name);
   const [editingBudget, setEditingBudget] = useState(false);
   const [budgetDraft, setBudgetDraft] = useState(String(monthlyBudget));
-  const scrollRef = useRef<ScrollView>(null);
+  const [savingPicture, setSavingPicture] = useState(false);
+  const scrollRef = useRef<ScrollViewInstance>(null) // the scroll view on screen (what we call scrollToEnd on);
 
   // The budget field sits low on the screen: once the keyboard is open, scroll it into view
   useEffect(() => {
@@ -39,6 +44,44 @@ export default function ProfileScreen() {
     });
     return () => subscription.remove(); // stop listening when editing ends
   }, [editingBudget]);
+
+  // Uploads (or removes) the picture and shows a spinner on the avatar meanwhile
+  async function savePicture(picture: string | null) {
+    setSavingPicture(true);
+    try {
+      await changePicture(picture);
+    } catch (error) {
+      Alert.alert("Couldn't change your picture", error instanceof Error ? error.message : String(error));
+    } finally {
+      setSavingPicture(false);
+    }
+  }
+
+  async function pickFromPhotos() {
+    // Opens the phone's photo library. allowsEditing + aspect 1:1 lets you crop a square, which fits the circle.
+    // base64 gives us the picture as text, which is how Clerk accepts a file from a phone.
+    const result = await ImagePicker.launchImageLibraryAsync({
+      mediaTypes: ["images"],
+      allowsEditing: true,
+      aspect: [1, 1],
+      quality: 0.6, // smaller file, still sharp in a small circle
+      base64: true,
+    });
+    if (result.canceled) return; // you closed the library without choosing
+    const photo = result.assets[0];
+    if (!photo.base64) return Alert.alert("Couldn't read that photo", "Please try another one.");
+    await savePicture(`data:${photo.mimeType ?? "image/jpeg"};base64,${photo.base64}`);
+  }
+
+  function handleAvatarPress() {
+    if (savingPicture) return;
+    Alert.alert("Profile picture", undefined, [
+      { text: "Choose from photos", onPress: pickFromPhotos },
+      // Only offer "Remove" when there is a picture to remove
+      ...(profile.imageUrl ? [{ text: "Remove picture", style: "destructive" as const, onPress: () => savePicture(null) }] : []),
+      { text: "Cancel", style: "cancel" },
+    ]);
+  }
 
   function startEditName() {
     setNameDraft(profile.name); // start from the current saved name
@@ -75,7 +118,22 @@ export default function ProfileScreen() {
 
           {/* Profile card */}
           <View style={styles.profileCard}>
-            <Avatar initials={initialsOf(profile.name)} size={72} />
+            <Pressable
+              onPress={handleAvatarPress}
+              style={({ pressed }) => pressed && styles.pressed}
+              accessibilityRole="button"
+              accessibilityLabel="Change profile picture"
+            >
+              <Avatar initials={initialsOf(profile.name)} size={88} imageUrl={profile.imageUrl} />
+              {savingPicture ? (
+                <View style={styles.avatarBusy}>
+                  <ActivityIndicator color="white" />
+                </View>
+              ) : null}
+              <View style={styles.cameraBadge}>
+                <Camera size={14} color="white" />
+              </View>
+            </Pressable>
 
             {editingName ? (
               <View style={styles.editRow}>
@@ -107,7 +165,8 @@ export default function ProfileScreen() {
           <View style={styles.section}>
             <SectionHeader title="Account" />
             <View style={styles.listCard}>
-              <SettingsRow icon={Mail} label="Email" value={profile.email} />
+              {/* People who sign up with a phone number have no email, so only show it when there is one */}
+              {profile.email ? <SettingsRow icon={Mail} label="Email" value={profile.email} /> : null}
               <SettingsRow icon={Phone} tone="green" label="Phone" value={profile.phone} isLast />
             </View>
           </View>
@@ -121,6 +180,7 @@ export default function ProfileScreen() {
                 tone="amber"
                 label="Monthly budget"
                 value={formatRWF(monthlyBudget)}
+                isLast={!editingBudget} // the edit box below becomes the last row while it's open
                 right={
                   <Pressable onPress={toggleEditBudget} hitSlop={8}>
                     <Text style={styles.link}>{editingBudget ? "Cancel" : "Edit"}</Text>
@@ -144,27 +204,13 @@ export default function ProfileScreen() {
                   </Pressable>
                 </View>
               ) : null}
-
-              <SettingsRow
-                icon={EyeOff}
-                tone="indigo"
-                label="Hide balance"
-                value="Show •••••• on the Home screen"
-                isLast
-                right={
-                  <Switch
-                    value={hideBalance}
-                    onValueChange={setHideBalance}
-                    trackColor={{ false: colors.border, true: colors.primary }}
-                    thumbColor="white"
-                  />
-                }
-              />
             </View>
           </View>
 
-          
-          
+          <Pressable style={styles.signOutButton} onPress={() => signOut()} accessibilityRole="button">
+            <LogOut size={18} color={colors.danger} />
+            <Text style={styles.signOutText}>Sign out</Text>
+          </Pressable>
         </ScrollView>
       </KeyboardAvoidingView>
     </SafeAreaView>
@@ -173,6 +219,29 @@ export default function ProfileScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: colors.background },
+  pressed: { opacity: 0.7 },
+  // a dark see-through layer over the avatar while the picture uploads
+  avatarBusy: {
+    ...StyleSheet.absoluteFill,
+    borderRadius: radius.full,
+    backgroundColor: "rgba(0,0,0,0.35)",
+    alignItems: "center",
+    justifyContent: "center",
+  },
+  // the small camera circle on the avatar's corner, so people know they can tap it
+  cameraBadge: {
+    position: "absolute",
+    right: 0,
+    bottom: 0,
+    width: 28,
+    height: 28,
+    borderRadius: radius.full,
+    backgroundColor: colors.primary,
+    borderWidth: 2,
+    borderColor: colors.surface,
+    alignItems: "center",
+    justifyContent: "center",
+  },
   flex: { flex: 1 },
   screen: { paddingHorizontal: spacing.xl, paddingBottom: spacing.xxl, gap: spacing.xl },
   title: { fontFamily: fonts.display, fontSize: 28, color: colors.text, marginTop: spacing.sm },
@@ -189,7 +258,7 @@ const styles = StyleSheet.create({
   name: { fontFamily: fonts.display, fontSize: 22, color: colors.text },
   subtitle: { fontFamily: fonts.regular, fontSize: 14, color: colors.textMuted },
   editRow: { flexDirection: "row", alignItems: "center", gap: spacing.sm, alignSelf: "stretch" },
-  budgetEditRow: { paddingVertical: spacing.md, borderBottomWidth: 1, borderBottomColor: colors.divider },
+  budgetEditRow: { paddingVertical: spacing.md },
   input: {
     flex: 1,
     height: 44,
@@ -220,4 +289,16 @@ const styles = StyleSheet.create({
   },
   link: { fontFamily: fonts.semibold, fontSize: 13, color: colors.primary },
   version: { fontFamily: fonts.regular, fontSize: 12, color: colors.textMuted, textAlign: "center" },
+  signOutButton: {
+    height: 52,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: spacing.sm,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.border,
+    backgroundColor: colors.surface,
+  },
+  signOutText: { fontFamily: fonts.semibold, fontSize: 15, color: colors.danger },
 });

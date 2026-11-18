@@ -1,7 +1,7 @@
 import { View, Text, StyleSheet, Pressable, ScrollView } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { router } from "expo-router";
-import { Bell, ArrowUpRight, ArrowDownLeft, Plus } from "lucide-react-native";
+import { Bell, ArrowUpRight, ArrowDownLeft, Plus, Eye, EyeOff } from "lucide-react-native";
 import { colors, spacing, radius, fonts } from "@/constants/theme";
 import { Avatar } from "@/components/avatar";
 import { SectionHeader } from "@/components/section-header";
@@ -10,7 +10,8 @@ import { useWallet } from "@/context/wallet";
 import { firstName, formatRWF, initialsOf } from "@/utils/formats";
 
 export default function HomeScreen() {
-  const { balance, transactions, contacts, profile, hideBalance, notifications, seenNotificationIds } = useWallet();
+  const { balance, transactions, contacts, profile, hideBalance, setHideBalance, notifications, seenNotificationIds } =
+    useWallet();
   const recent = transactions.slice(0, 5);
   const unseenCount = notifications.filter((n) => !seenNotificationIds.includes(n.id)).length;
 
@@ -19,9 +20,13 @@ export default function HomeScreen() {
       <ScrollView contentContainerStyle={styles.screen} showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View style={styles.header}>
-          <View style={styles.avatar}>
-            <Text style={styles.avatarText}>{initialsOf(profile.name)}</Text>
-          </View>
+          {profile.imageUrl ? (
+            <Avatar initials={initialsOf(profile.name)} imageUrl={profile.imageUrl} size={44} />
+          ) : (
+            <View style={styles.avatar}>
+              <Text style={styles.avatarText}>{initialsOf(profile.name)}</Text>
+            </View>
+          )}
           <View style={styles.headerText}>
             <Text style={styles.greeting}>Welcome to</Text>
             <Text style={styles.name}>WalletChat</Text>
@@ -38,9 +43,24 @@ export default function HomeScreen() {
 
         {/* Balance card */}
         <View style={styles.card}>
-          <Text style={styles.cardLabel}>Total balance</Text>
-          <Text style={styles.balance}>{hideBalance ? "RWF ......" :formatRWF(balance)}</Text>
-          
+          <View style={styles.cardTop}>
+            <Text style={styles.cardLabel}>Total balance</Text>
+            {/* Tap the eye to hide or show the balance. The choice is saved on the server, so it stays after a restart */}
+            <Pressable
+              onPress={() => setHideBalance(!hideBalance)}
+              hitSlop={8}
+              style={({ pressed }) => [styles.eyeButton, pressed && styles.eyePressed]}
+              accessibilityRole="button"
+              accessibilityLabel={hideBalance ? "Show balance" : "Hide balance"}
+            >
+              {hideBalance ? (
+                <Eye size={18} color={colors.onPrimaryMuted} />
+              ) : (
+                <EyeOff size={18} color={colors.onPrimaryMuted} />
+              )}
+            </Pressable>
+          </View>
+          <Text style={styles.balance}>{hideBalance ? "RWF ••••••" : formatRWF(balance)}</Text>
 
           <View style={styles.actions}>
             <Pressable
@@ -82,13 +102,15 @@ export default function HomeScreen() {
               <Text style={styles.quickName}>New</Text>
             </Pressable>
 
-            {contacts.map((contact) => (
+            {contacts
+              .filter((contact) => contact.onWalletChat) // money only goes to people with an account
+              .map((contact) => (
               <Pressable
                 key={contact.id}
                 style={styles.quickItem}
                 onPress={() => router.push({ pathname: "/send", params: { contactId: contact.id } })}
               >
-                <Avatar initials={contact.initials} tone={contact.tone} />
+                <Avatar initials={contact.initials} tone={contact.tone} imageUrl={contact.imageUrl} />
                 <Text style={styles.quickName} numberOfLines={1}>
                   {firstName(contact.name)}
                 </Text>
@@ -171,8 +193,12 @@ const styles = StyleSheet.create({
     padding: spacing.xl,
     gap: 6,
   },
+  cardTop: { flexDirection: "row", alignItems: "center", justifyContent: "space-between" },
   cardLabel: { fontFamily: fonts.regular, fontSize: 13, color: colors.onPrimaryMuted },
-  balance: { fontFamily: fonts.display, fontSize: 36, color: "white" },
+  eyeButton: { width: 32, height: 32, alignItems: "center", justifyContent: "center" }, // same size for both icons
+  eyePressed: { opacity: 0.5 }, // shows the tap was felt
+  // A fixed line height and same-width digits, so the card keeps its size when the balance hides or shows
+  balance: { fontFamily: fonts.display, fontSize: 36, lineHeight: 44, color: "white", fontVariant: ["tabular-nums"] },
   weekly: { fontFamily: fonts.medium, fontSize: 13, color: colors.accentOnPrimary },
   actions: { flexDirection: "row", gap: spacing.sm, marginTop: 14 },
   actionButton: {

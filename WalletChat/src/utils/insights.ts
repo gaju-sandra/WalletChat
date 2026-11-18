@@ -1,4 +1,4 @@
-import type { Transaction } from "@/data/mock";
+import type { Transaction } from "@/types/wallet";
 
 export type SpendingCategory = Exclude<Transaction["category"], "income">;
 

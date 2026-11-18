@@ -1,6 +1,6 @@
 import { View, Text, StyleSheet } from "react-native";
 import { colors, fonts, palette, radius, spacing} from "@/constants/theme";
-import type { Transaction } from "@/data/mock";
+import type { Transaction } from "@/types/wallet";
 import { formatRWF } from "@/utils/formats";
 import { categoryInfo } from "@/constants/categories";
 

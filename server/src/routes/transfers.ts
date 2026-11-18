@@ -1,16 +1,20 @@
 import { Router } from "express";
-import { pool } from "../db.js";
+import { pool } from "../db.ts";
 
 export const transfersRouter = Router();
 
-// POST /transfers  { "fromUserId": 1, "toUserId": 2, "amount": 5000 }
-// Sends money from one person to another. Five changes that must all happen, or none:
+// The columns the transfer reads from each of the two users
+type Wallet = { id: number; name: string; balance: number; clerk_user_id: string | null };
+
+// POST /transfers  { "toUserId": 2, "amount": 5000 }
+// Sends money from me (the signed-in person, req.user) to someone else. Five changes that must all happen, or none:
 // two balances, two transactions (one each), and a payment message in their chat.
 transfersRouter.post("/", async (req, res) => {
-  const { fromUserId, toUserId, amount } = req.body ?? {};
+  const fromUserId = req.user.id; // always me: taken from the sign-in ticket, never from the request
+  const { toUserId, amount } = req.body ?? {};
 
-  if (!Number.isInteger(fromUserId) || !Number.isInteger(toUserId)) {
-    return res.status(400).json({ error: "fromUserId and toUserId must be whole numbers" });
+  if (!Number.isInteger(toUserId)) {
+    return res.status(400).json({ error: "toUserId must be a whole number" });
   }
   if (fromUserId === toUserId) return res.status(400).json({ error: "You can't send money to yourself" });
   if (!Number.isInteger(amount) || amount <= 0) {
@@ -23,8 +27,8 @@ transfersRouter.post("/", async (req, res) => {
 
     // FOR UPDATE locks both rows until COMMIT, so two transfers at the same moment can't both spend the
     // same money. Locking in id order (ORDER BY id) stops two transfers waiting on each other forever.
-    const { rows: people } = await client.query(
-      "SELECT id, name, balance FROM users WHERE id = ANY($1) ORDER BY id FOR UPDATE",
+    const { rows: people } = await client.query<Wallet>(
+      "SELECT id, name, balance, clerk_user_id FROM users WHERE id = ANY($1) ORDER BY id FOR UPDATE",
       [[fromUserId, toUserId]],
     );
     const sender = people.find((p) => p.id === fromUserId);
@@ -33,6 +37,15 @@ transfersRouter.post("/", async (req, res) => {
     if (!sender || !receiver) {
       await client.query("ROLLBACK");
       return res.status(404).json({ error: "Sender or receiver not found" });
+    }
+    // Someone added as a contact but not signed up yet has no account: nobody could use money sent there.
+    // Messages can still wait for them, but money only goes to people on WalletChat.
+    if (!receiver.clerk_user_id) {
+      await client.query("ROLLBACK");
+      return res.status(400).json({
+        error: `${receiver.name} isn't on WalletChat yet. You can send money once they create an account.`,
+        code: "not_on_walletchat",
+      });
     }
     if (sender.balance < amount) {
       await client.query("ROLLBACK");
@@ -66,7 +79,7 @@ transfersRouter.post("/", async (req, res) => {
     res.status(201).json({ message: messageRows[0], senderBalance: sender.balance - amount });
   } catch (error) {
     await client.query("ROLLBACK"); // undo everything done since BEGIN
-    throw error; // the error handler in index.js turns this into a 500 response
+    throw error; // the error handler in index.ts turns this into a 500 response
   } finally {
     client.release(); // give the connection back to the pool
   }

@@ -1,4 +1,4 @@
-import type { Contact, Message } from "@/data/mock";
+import type { Contact, Message } from "@/types/wallet";
 import { formatRWF } from "@/utils/formats";
 
 export function previewText(message: Message) {
@@ -9,6 +9,10 @@ export function previewText(message: Message) {
       return `${message.fromMe ? "You sent" : "You received"} ${formatRWF(message.amount)}`;
     case "request":
       return `${message.fromMe ? "You requested" : "Requested"} ${formatRWF(message.amount)}`;
+    case "contact":
+      return `👤 ${message.contactName}`;
+    case "photo":
+      return "📷 Photo";
   }
 }
 
