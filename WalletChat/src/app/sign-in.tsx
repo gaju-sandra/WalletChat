@@ -75,6 +75,11 @@ export default function SignInScreen() {
       <FormError message={error} />
       <PrimaryButton label={busy ? "Signing in…" : "Sign in"} onPress={handleSignIn} disabled={busy} />
 
+      <AuthSwitch
+        question="Forgot your password?"
+        action="Reset it"
+        onPress={() => router.push({ pathname: "/forgot-password", params: { email: email.trim() } })}
+      />
       <AuthSwitch question="New to WalletChat?" action="Create an account" onPress={() => router.replace("/sign-up")} />
     </AuthScreen>
   );
