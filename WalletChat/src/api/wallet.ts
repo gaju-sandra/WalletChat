@@ -136,6 +136,20 @@ export function syncProfilePicture() {
   return api("/me/picture", { method: "POST" });
 }
 
+// After changing my email on Clerk: the server copies the new, verified address
+export function syncEmail() {
+  return api("/me/email", { method: "POST" });
+}
+
+// This phone's push notification address (see utils/push.ts): save it, or forget it when signing out
+export function savePushToken(token: string) {
+  return api("/me/push-token", { method: "POST", body: { token } });
+}
+
+export function forgetPushToken(token: string) {
+  return api("/me/push-token", { method: "DELETE", body: { token } });
+}
+
 export function sendTransfer(contactId: string, amount: number) {
   return api("/transfers", { method: "POST", body: { toUserId: Number(contactId), amount } });
 }

@@ -2,6 +2,7 @@ import express, { type NextFunction, type Request, type Response } from "express
 import { clerkMiddleware } from "@clerk/express";
 import { pool } from "./db.ts";
 import { requireUser } from "./auth.ts";
+import { startLive } from "./live.ts";
 import { messageOf } from "./errors.ts";
 import { meRouter } from "./routes/me.ts";
 import { transfersRouter } from "./routes/transfers.ts";
@@ -58,6 +59,7 @@ app.use((error: { type?: string }, req: Request, res: Response, next: NextFuncti
 
 const port = Number(process.env.PORT ?? 3000);
 // 0.0.0.0 = accept connections from other devices on your Wi-Fi too, like your iPhone
-app.listen(port, "0.0.0.0", () => {
-  console.log(`WalletChat API running on http://localhost:${port}`);
+const server = app.listen(port, "0.0.0.0", () => {
+  console.log(`WalletChat API running on http://localhost:${port} (live updates on ws://…:${port}/live)`);
 });
+startLive(server); // the WebSocket lines share the same port as the API

@@ -1,5 +1,7 @@
 import { Router } from "express";
 import { pool } from "../db.ts";
+import { notifyChanged } from "../live.ts";
+import { sendPush } from "../push.ts";
 
 export const transfersRouter = Router();
 
@@ -77,6 +79,14 @@ transfersRouter.post("/", async (req, res) => {
 
     await client.query("COMMIT");
     res.status(201).json({ message: messageRows[0], senderBalance: sender.balance - amount });
+
+    // Both balances changed: both apps reload now, and the receiver gets a notification
+    notifyChanged([sender.id, receiver.id]);
+    void sendPush(receiver.id, {
+      title: sender.name,
+      body: `Sent you RWF ${amount.toLocaleString("en-US")}`,
+      data: { chatId: String(sender.id) },
+    });
   } catch (error) {
     await client.query("ROLLBACK"); // undo everything done since BEGIN
     throw error; // the error handler in index.ts turns this into a 500 response

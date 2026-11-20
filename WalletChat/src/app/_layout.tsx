@@ -40,10 +40,12 @@ function RootNavigator() {
         <Stack.Screen name="notifications" />
         <Stack.Screen name="chat/[id]" />
         <Stack.Screen name="contact/[id]" />
+        <Stack.Screen name="change-email" />
       </Stack.Protected>
       <Stack.Protected guard={!isSignedIn}>
         <Stack.Screen name="sign-in" />
         <Stack.Screen name="sign-up" />
+        <Stack.Screen name="forgot-password" />
       </Stack.Protected>
     </Stack>
   );

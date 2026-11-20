@@ -1,8 +1,11 @@
 import { Router } from "express";
+import pg from "pg";
 import { clerkClient, getAuth } from "@clerk/express";
 import { pool } from "../db.ts";
 import { normalizePhone } from "../phone.ts";
 import { requireUser } from "../auth.ts";
+import { notifyChanged } from "../live.ts";
+import { isPushToken } from "../push.ts";
 
 // Everything here is about "me": the signed-in person. There is no user id in the address any more,
 // so nobody can read or change someone else's wallet by changing a number.
@@ -96,6 +99,51 @@ meRouter.post("/picture", async (req, res) => {
   res.json(rows[0]);
 });
 
+// POST /me/email → copy my email from Clerk (call it after changing it)
+// The app changes the email on Clerk, which checks it with a code. The server then reads it from Clerk
+// instead of taking it from the app, so nobody can save an email they didn't prove is theirs.
+meRouter.post("/email", async (req, res) => {
+  const { userId } = getAuth(req);
+  if (!userId) return res.status(401).json({ error: "Please sign in.", code: "signed_out" });
+  const clerkUser = await clerkClient.users.getUser(userId);
+  const email = clerkUser.primaryEmailAddress?.emailAddress ?? null;
+  try {
+    const { rows } = await pool.query(`UPDATE users SET email = $2 WHERE id = $1 RETURNING ${USER_COLUMNS}`, [
+      req.user.id,
+      email,
+    ]);
+    res.json(rows[0]);
+  } catch (error) {
+    // 23505 = unique violation: another wallet already has this email
+    if (error instanceof pg.DatabaseError && error.code === "23505") {
+      return res.status(409).json({ error: "Another wallet already uses this email." });
+    }
+    throw error;
+  }
+});
+
+// POST /me/push-token  { "token": "ExponentPushToken[…]" }
+// This phone allowed notifications: send mine to it. If someone else was signed in on this phone
+// before, the token moves to me (ON CONFLICT), so their notifications stop arriving on it.
+meRouter.post("/push-token", async (req, res) => {
+  const token = req.body?.token;
+  if (!isPushToken(token)) return res.status(400).json({ error: "That isn't an Expo push token." });
+  await pool.query(
+    `INSERT INTO push_tokens (token, user_id) VALUES ($1, $2)
+     ON CONFLICT (token) DO UPDATE SET user_id = EXCLUDED.user_id, updated_at = now()`,
+    [token, req.user.id],
+  );
+  res.sendStatus(204);
+});
+
+// DELETE /me/push-token  { "token": "ExponentPushToken[…]" }  → signing out: stop notifications on this phone
+meRouter.delete("/push-token", async (req, res) => {
+  const token = req.body?.token;
+  if (!isPushToken(token)) return res.status(400).json({ error: "That isn't an Expo push token." });
+  await pool.query("DELETE FROM push_tokens WHERE token = $1 AND user_id = $2", [token, req.user.id]);
+  res.sendStatus(204);
+});
+
 // GET /me/contacts → my chat list, most recent conversation first
 meRouter.get("/contacts", async (req, res) => {
   const { rows } = await pool.query(
@@ -174,6 +222,7 @@ meRouter.post("/contacts", async (req, res) => {
 
     await client.query("COMMIT");
     res.status(201).json({ ...person, unread: added[0].unread, added_at: added[0].added_at });
+    notifyChanged([person.id]); // the chat with me appears in their list straight away
   } catch (error) {
     await client.query("ROLLBACK");
     throw error;

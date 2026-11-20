@@ -15,7 +15,7 @@ import {
   type ScrollViewInstance,
 } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
-import { useClerk } from "@clerk/expo";
+import { router } from "expo-router";
 import * as ImagePicker from "expo-image-picker";
 import { Mail, Phone, Wallet, Pencil, LogOut, Camera, UserPlus, ChevronRight } from "lucide-react-native";
 import { colors, fonts, radius, spacing } from "@/constants/theme";
@@ -26,8 +26,8 @@ import { useWallet } from "@/context/wallet";
 import { firstName, formatRWF, initialsOf } from "@/utils/formats";
 
 export default function ProfileScreen() {
-  const { profile, updateName, monthlyBudget, setMonthlyBudget, changePicture } = useWallet();
-  const { signOut } = useClerk(); // ends the Clerk session: the app goes back to the sign-in screen
+  // signOut stops this phone's notifications, then ends the Clerk session: the app goes back to sign-in
+  const { profile, updateName, monthlyBudget, setMonthlyBudget, changePicture, signOut } = useWallet();
 
   // Local "draft" state: what the user is typing before they press Save
   const [editingName, setEditingName] = useState(false);
@@ -181,7 +181,18 @@ export default function ProfileScreen() {
             <SectionHeader title="Account" />
             <View style={styles.listCard}>
               {/* People who sign up with a phone number have no email, so only show it when there is one */}
-              {profile.email ? <SettingsRow icon={Mail} label="Email" value={profile.email} /> : null}
+              {profile.email ? (
+                <SettingsRow
+                  icon={Mail}
+                  label="Email"
+                  value={profile.email}
+                  right={
+                    <Pressable onPress={() => router.push("/change-email")} hitSlop={8} accessibilityRole="button">
+                      <Text style={styles.link}>Change</Text>
+                    </Pressable>
+                  }
+                />
+              ) : null}
               <SettingsRow icon={Phone} tone="green" label="Phone" value={profile.phone} isLast />
             </View>
           </View>

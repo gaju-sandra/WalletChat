@@ -41,6 +41,12 @@
         }
       ],
       [
+        "expo-notifications",
+        {
+          "color": "#0F4C5C"
+        }
+      ],
+      [
         "expo-contacts",
         {
           "contactsPermission": "WalletChat uses your contacts so you can share one in a chat."

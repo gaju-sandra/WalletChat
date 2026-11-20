@@ -34,7 +34,7 @@ export function setTokenGetter(getter: TokenGetter) {
 }
 
 type RequestOptions = {
-  method?: "GET" | "POST" | "PATCH";
+  method?: "GET" | "POST" | "PATCH" | "DELETE";
   body?: unknown;
   timeoutMs?: number; // give up after this long (photo uploads need more time)
 };
