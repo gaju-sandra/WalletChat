@@ -6,7 +6,8 @@ import { pool } from "./db.ts";
 // Live updates: each open app keeps one WebSocket (a line that stays open) to the server at /live.
 // When something changes for you (a new message, money received), the server sends {"type":"changed"}
 // down your line and the app reloads. The ping carries no data: the app still fetches it the normal,
-// checked way, so nothing private travels over this line.
+// checked way, so nothing private travels over this line. The only other thing on it is "typing…",
+// which says who is typing to you, never what.
 
 const HELLO_TIMEOUT_MS = 5_000; // a phone must say who it is within 5 seconds, or it's closed
 const HEARTBEAT_MS = 30_000; // check every 30 seconds that each phone is still there
@@ -14,14 +15,37 @@ const HEARTBEAT_MS = 30_000; // check every 30 seconds that each phone is still 
 // Who is connected: user id → their open lines (one per phone, or more if signed in on several)
 const linesByUser = new Map<number, Set<WebSocket>>();
 
+function sendTo(userId: number, message: object) {
+  const text = JSON.stringify(message);
+  for (const line of linesByUser.get(userId) ?? []) {
+    if (line.readyState === line.OPEN) line.send(text);
+  }
+}
+
 // Tell these users' apps that their data changed. Safe to call for users who aren't connected.
 export function notifyChanged(userIds: number[]) {
-  const message = JSON.stringify({ type: "changed" });
-  for (const userId of new Set(userIds)) {
-    for (const line of linesByUser.get(userId) ?? []) {
-      if (line.readyState === line.OPEN) line.send(message);
-    }
+  for (const userId of new Set(userIds)) sendTo(userId, { type: "changed" });
+}
+
+// "Sandra is typing…": {"type":"typing","to":6,"typing":true} from Sandra's app goes to user 6 as
+// {"type":"typing","from":<Sandra's id>,"typing":true}. Only to someone who has you in their contacts,
+// so a stranger can't send it. Nothing is saved: if they're not connected, it's simply dropped.
+async function forwardTyping(fromId: number, raw: string) {
+  let message: { type?: unknown; to?: unknown; typing?: unknown };
+  try {
+    message = JSON.parse(raw);
+  } catch {
+    return;
   }
+  if (message.type !== "typing" || !Number.isInteger(message.to) || message.to === fromId) return;
+  const toId = message.to as number;
+  if (!linesByUser.has(toId)) return; // not connected: nobody to tell
+
+  const { rowCount } = await pool.query("SELECT 1 FROM contacts WHERE owner_id = $1 AND contact_id = $2", [
+    toId,
+    fromId,
+  ]);
+  if (rowCount) sendTo(toId, { type: "typing", from: fromId, typing: message.typing !== false });
 }
 
 // The first message on a new line must be {"type":"hello","token":"<Clerk session token>"}.
@@ -64,6 +88,12 @@ export function startLive(server: Server) {
       if (!linesByUser.has(userId)) linesByUser.set(userId, new Set());
       linesByUser.get(userId)!.add(line);
       line.send(JSON.stringify({ type: "ready" }));
+
+      // After hello, the only thing a phone sends is "typing"
+      const me = userId;
+      line.on("message", (next) => {
+        forwardTyping(me, next.toString()).catch((error) => console.warn("Couldn't forward typing:", error));
+      });
     });
 
     // Phones that lose signal often don't say goodbye: ping them, and close lines that stop answering

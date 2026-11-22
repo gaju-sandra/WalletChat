@@ -60,7 +60,12 @@ type WalletContextValue = {
   changePicture: (picture: string | null) => Promise<void>;
   emailChanged: () => Promise<void>; // the email was changed on Clerk: save it on our server too
   signOut: () => Promise<void>; // stops notifications on this phone, then ends the Clerk session
+  typing: Record<string, boolean>; // contact id → they are typing to me right now
+  tellTyping: (contactId: string, typing: boolean) => void; // I'm typing to them (or stopped)
 };
+
+const TYPING_SHOWN_MS = 4_000; // "typing…" goes away 4 s after the last sign of typing
+const TYPING_SEND_EVERY_MS = 3_000; // while I type, say so at most every 3 s (not on every key)
 
 const WalletContext = createContext<WalletContextValue | null>(null);
 
@@ -139,20 +144,38 @@ export function WalletProvider({ children }: { children: ReactNode }) {
 
   // Live updates: the server says "changed" when someone messages you or sends you money, and we reload.
   // Several pings close together (e.g. a payment = balance + message) become one reload.
+  // The same line says who is typing to you.
+  const live = useRef<ReturnType<typeof connectLive> | null>(null);
+  const [typing, setTyping] = useState<Record<string, boolean>>({});
+  const typingTimers = useRef<Record<string, ReturnType<typeof setTimeout>>>({});
   useEffect(() => {
     if (!ready) return;
     let reloadTimer: ReturnType<typeof setTimeout> | undefined;
-    const disconnect = connectLive(getToken, () => {
-      clearTimeout(reloadTimer);
-      reloadTimer = setTimeout(() => {
-        fetchWallet().then(setData, (error) => console.warn("Couldn't load the new data:", messageOf(error)));
-      }, 300);
+    const timers = typingTimers.current;
+    live.current = connectLive(getToken, {
+      onChange() {
+        clearTimeout(reloadTimer);
+        reloadTimer = setTimeout(() => {
+          fetchWallet().then(setData, (error) => console.warn("Couldn't load the new data:", messageOf(error)));
+        }, 300);
+      },
+      onTyping(from, isTyping) {
+        clearTimeout(timers[from]);
+        setTyping((prev) => (prev[from] === isTyping ? prev : { ...prev, [from]: isTyping }));
+        // No news for a few seconds (they stopped, or lost signal): stop showing it
+        if (isTyping) timers[from] = setTimeout(() => setTyping((prev) => ({ ...prev, [from]: false })), TYPING_SHOWN_MS);
+      },
     });
     return () => {
       clearTimeout(reloadTimer);
-      disconnect();
+      Object.values(timers).forEach(clearTimeout);
+      live.current?.close();
+      live.current = null;
     };
   }, [ready, getToken]);
+
+  // When I last told each contact "typing", so a fast typist doesn't send a message per key
+  const lastTypingSent = useRef<Record<string, number>>({});
 
   // Push notifications: ask once for permission, then tell the server where to send yours
   const pushToken = useRef<string | null>(null);
@@ -224,9 +247,18 @@ export function WalletProvider({ children }: { children: ReactNode }) {
     await refresh();
   }
 
+  function tellTyping(contactId: string, isTyping: boolean) {
+    const last = lastTypingSent.current[contactId] ?? 0;
+    if (isTyping && Date.now() - last < TYPING_SEND_EVERY_MS) return; // told them a moment ago
+    if (!isTyping && last === 0) return; // never said I was typing: nothing to take back
+    lastTypingSent.current[contactId] = isTyping ? Date.now() : 0;
+    live.current?.sendTyping(contactId, isTyping);
+  }
+
   async function sendMessage(contactId: string, text: string) {
     const trimmed = text.trim();
     if (!trimmed) return; // don't send empty messages
+    tellTyping(contactId, false); // the message itself is on its way: stop "typing…" on their side
     await sendTextMessage(contactId, trimmed);
     await refresh();
   }
@@ -376,6 +408,8 @@ export function WalletProvider({ children }: { children: ReactNode }) {
         changePicture,
         emailChanged,
         signOut,
+        typing,
+        tellTyping,
       }}
     >
       {children}

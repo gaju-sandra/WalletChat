@@ -25,7 +25,7 @@ import { useWallet } from "@/context/wallet";
 
 export default function ChatScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
-  const { contacts, messages, sendMessage, markRead, shareContact, sendPhoto } = useWallet();
+  const { contacts, messages, sendMessage, markRead, shareContact, sendPhoto, typing, tellTyping } = useWallet();
   const [draft, setDraft] = useState("");
   const [menuOpen, setMenuOpen] = useState(false); // the + menu
   const [sendingPhoto, setSendingPhoto] = useState(false); // a photo is uploading
@@ -137,7 +137,10 @@ export default function ChatScreen() {
             <Text style={styles.name} numberOfLines={1}>
               {contact.name}
             </Text>
-            <Text style={styles.whoHint}>Tap for contact info</Text>
+            {/* While they type to me, "typing…" replaces the hint */}
+            <Text style={[styles.whoHint, typing[contact.id] && styles.typing]}>
+              {typing[contact.id] ? "typing…" : "Tap for contact info"}
+            </Text>
           </View>
         </Pressable>
       </View>
@@ -155,7 +158,13 @@ export default function ChatScreen() {
           ref={listRef}
           data={thread}
           keyExtractor={(m) => m.id}
-          renderItem={({ item }) => <MessageBubble message={item} />}
+          renderItem={({ item }) => (
+            // seen: they opened the chat after I sent it (✓✓). Only shown on my own messages.
+            <MessageBubble
+              message={item}
+              seen={!!contact?.seenAt && new Date(item.sentAt) <= new Date(contact.seenAt)}
+            />
+          )}
           contentContainerStyle={styles.list}
           onContentSizeChange={() => listRef.current?.scrollToEnd({ animated: true })}
         />
@@ -178,7 +187,10 @@ export default function ChatScreen() {
           <TextInput
             style={styles.input}
             value={draft}
-            onChangeText={setDraft}
+            onChangeText={(text) => {
+              setDraft(text);
+              if (contact) tellTyping(contact.id, text.trim().length > 0); // "typing…" on their side
+            }}
             placeholder="Message"
             placeholderTextColor={colors.textMuted}
             returnKeyType="send"
@@ -242,6 +254,7 @@ const styles = StyleSheet.create({
   whoPressed: { opacity: 0.6 },
   whoTexts: { flex: 1 },
   whoHint: { fontFamily: fonts.regular, fontSize: 12, color: colors.textMuted },
+  typing: { fontFamily: fonts.medium, color: colors.primary },
   name: { fontFamily: fonts.semibold, fontSize: 16, color: colors.text },
   notice: {
     paddingHorizontal: spacing.lg,

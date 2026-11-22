@@ -26,6 +26,7 @@ type ServerContact = {
   unread: number;
   added_at: string;
   on_walletchat: boolean;
+  seen_at?: string | null; // only in the contact list (GET /me/contacts)
 };
 type ServerMessage = {
   id: number;
@@ -54,6 +55,7 @@ function toContact(c: ServerContact): Contact {
     imageUrl: c.image_url ?? undefined,
     addedAt: c.added_at,
     onWalletChat: c.on_walletchat,
+    seenAt: c.seen_at ?? undefined,
   };
 }
 

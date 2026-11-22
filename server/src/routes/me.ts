@@ -149,15 +149,17 @@ meRouter.get("/contacts", async (req, res) => {
   const { rows } = await pool.query(
     `SELECT u.id, u.name, u.phone, u.image_url, c.unread, c.added_at,
             u.clerk_user_id IS NOT NULL AS on_walletchat, -- true = they have an account and can use money
+            theirs.read_at AS seen_at, -- when THEY last opened our chat: my messages before it are seen (✓✓)
             -- latest of "when added" and "newest message either way"; GREATEST skips NULLs
             GREATEST(c.added_at, MAX(m.sent_at)) AS last_activity
        FROM contacts c
        JOIN users u ON u.id = c.contact_id
+       LEFT JOIN contacts theirs ON theirs.owner_id = c.contact_id AND theirs.contact_id = c.owner_id
        LEFT JOIN messages m
          ON (m.sender_id = c.owner_id AND m.receiver_id = c.contact_id)
          OR (m.sender_id = c.contact_id AND m.receiver_id = c.owner_id)
       WHERE c.owner_id = $1
-      GROUP BY u.id, c.unread, c.added_at
+      GROUP BY u.id, c.unread, c.added_at, theirs.read_at
       ORDER BY last_activity DESC`,
     [req.user.id],
   );
@@ -263,11 +265,12 @@ meRouter.post("/contacts/:contactId/read", async (req, res) => {
   if (!Number.isInteger(contactId) || contactId <= 0) {
     return res.status(400).json({ error: "contactId must be a positive whole number" });
   }
-  await pool.query("UPDATE contacts SET unread = 0 WHERE owner_id = $1 AND contact_id = $2", [
-    req.user.id,
-    contactId,
-  ]);
+  const { rowCount } = await pool.query(
+    "UPDATE contacts SET unread = 0, read_at = now() WHERE owner_id = $1 AND contact_id = $2",
+    [req.user.id, contactId],
+  );
   res.sendStatus(204); // done, nothing to send back
+  if (rowCount) notifyChanged([contactId]); // their ticks turn ✓✓ straight away
 });
 
 // GET /me/transactions → my money in and out, newest first

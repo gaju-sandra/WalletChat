@@ -7,11 +7,15 @@ const LIVE_URL = `${API_URL.replace(/^http/, "ws")}/live`; // http→ws, https�
 
 const RETRY_MS = [1_000, 2_000, 5_000, 10_000, 30_000]; // wait longer after each failed try, up to 30 s
 
+type LiveHandlers = {
+  onChange: () => void; // your data changed (and after every reconnect, to catch up)
+  onTyping: (fromUserId: string, typing: boolean) => void; // someone started or stopped typing to you
+};
+
 // Opens the line and keeps it open: if it drops (Wi-Fi ↔ mobile data, server restart, phone asleep),
-// it connects again by itself. onChange runs when the server says your data changed, and after every
-// reconnect too, in case something happened while the line was down.
-// Returns a function that closes the line for good (when you sign out).
-export function connectLive(getToken: () => Promise<string | null>, onChange: () => void) {
+// it connects again by itself, then calls onChange in case something happened while it was down.
+// Returns close() (closes the line for good, when you sign out) and sendTyping().
+export function connectLive(getToken: () => Promise<string | null>, { onChange, onTyping }: LiveHandlers) {
   let socket: WebSocket | null = null;
   let retryTimer: ReturnType<typeof setTimeout> | undefined;
   let failures = 0;
@@ -30,13 +34,14 @@ export function connectLive(getToken: () => Promise<string | null>, onChange: ()
     // First thing on the line: who I am. The server closes it if the token isn't valid.
     line.onopen = () => line.send(JSON.stringify({ type: "hello", token }));
     line.onmessage = (event) => {
-      const message = JSON.parse(String(event.data)) as { type: string };
+      const message = JSON.parse(String(event.data)) as { type: string; from?: number; typing?: boolean };
       if (message.type === "ready") {
         failures = 0;
         if (connectedBefore) onChange(); // back after a break: catch up on anything missed
         connectedBefore = true;
       }
       if (message.type === "changed") onChange();
+      if (message.type === "typing" && message.from) onTyping(String(message.from), message.typing !== false);
     };
     line.onclose = () => {
       if (socket === line) socket = null;
@@ -59,11 +64,19 @@ export function connectLive(getToken: () => Promise<string | null>, onChange: ()
 
   open();
 
-  return () => {
-    stopped = true;
-    clearTimeout(retryTimer);
-    appState.remove();
-    socket?.close();
-    socket = null;
+  return {
+    close() {
+      stopped = true;
+      clearTimeout(retryTimer);
+      appState.remove();
+      socket?.close();
+      socket = null;
+    },
+    // Tell contactId I'm typing (or stopped). Dropped if the line is down: it's only a hint.
+    sendTyping(contactId: string, typing: boolean) {
+      if (socket?.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify({ type: "typing", to: Number(contactId), typing }));
+      }
+    },
   };
 }

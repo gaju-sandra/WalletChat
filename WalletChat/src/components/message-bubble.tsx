@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { View, Text, StyleSheet, Pressable, Modal } from "react-native";
 import { router } from "expo-router";
-import { ArrowUpRight, ArrowDownLeft, HandCoins } from "lucide-react-native";
+import { ArrowUpRight, ArrowDownLeft, HandCoins, Check, CheckCheck } from "lucide-react-native";
 import { colors, fonts, radius, spacing } from "@/constants/theme";
 import type { Message } from "@/types/wallet";
 import { formatRWF, initialsOf, messageTime } from "@/utils/formats";
@@ -10,8 +10,27 @@ import { useWallet } from "@/context/wallet";
 import { Avatar } from "@/components/avatar";
 import { ChatPhoto } from "@/components/chat-photo";
 
+// The time under a message, and on my own messages the ticks: ✓ sent, ✓✓ (coloured) seen.
+//   on="primary": inside my dark-teal text bubble, so lighter colours
+//   on="photo":   on top of a picture, so white on a dark label
+function MessageTime({ message, seen, on }: { message: Message; seen: boolean; on?: "primary" | "photo" }) {
+  const Tick = seen ? CheckCheck : Check;
+  let tickColor = seen ? colors.accent : colors.textMuted;
+  if (on === "primary") tickColor = seen ? colors.accentOnPrimary : colors.onPrimaryMuted;
+  if (on === "photo") tickColor = seen ? colors.accentOnPrimary : "white";
+
+  return (
+    <View style={[styles.timeRow, on === "photo" && styles.photoTime]}>
+      <Text style={[styles.time, on === "primary" && styles.timeMine, on === "photo" && styles.timeOnPhoto]}>
+        {messageTime(new Date(message.sentAt))}
+      </Text>
+      {message.fromMe ? <Tick size={14} color={tickColor} accessibilityLabel={seen ? "Seen" : "Sent"} /> : null}
+    </View>
+  );
+}
+
 // A shared contact: their name and number, with a button to chat with them or save them
-function ContactCard({ message }: { message: Extract<Message, { kind: "contact" }> }) {
+function ContactCard({ message, seen }: { message: Extract<Message, { kind: "contact" }>; seen: boolean }) {
   const { contacts, profile } = useWallet();
   const mine = message.fromMe;
   const isMe = samePhone(message.contactPhone, profile.phone); // someone shared your own number
@@ -20,12 +39,7 @@ function ContactCard({ message }: { message: Extract<Message, { kind: "contact" 
   return (
     <View style={[styles.payment, styles.contactCard, mine ? styles.right : styles.left]}>
       <View style={styles.paymentHeader}>
-        <Avatar
-          initials={initialsOf(message.contactName)}
-          tone={saved?.tone}
-          imageUrl={saved?.imageUrl}
-          size={40}
-        />
+        <Avatar initials={initialsOf(message.contactName)} tone={saved?.tone} imageUrl={saved?.imageUrl} size={40} />
         <View style={styles.contactTexts}>
           <Text style={styles.contactName} numberOfLines={1}>
             {message.contactName}
@@ -45,19 +59,22 @@ function ContactCard({ message }: { message: Extract<Message, { kind: "contact" 
           style={styles.payButton}
           // opens New contact with the name and number already filled in
           onPress={() =>
-            router.push({ pathname: "/new-contact", params: { name: message.contactName, phone: message.contactPhone } })
+            router.push({
+              pathname: "/new-contact",
+              params: { name: message.contactName, phone: message.contactPhone },
+            })
           }
         >
           <Text style={styles.payText}>Add contact</Text>
         </Pressable>
       )}
-      <Text style={styles.time}>{messageTime(new Date(message.sentAt))}</Text>
+      <MessageTime message={message} seen={seen} />
     </View>
   );
 }
 
 // A photo in the chat. Tap it to see it full screen; tap again to close.
-function PhotoBubble({ message }: { message: Extract<Message, { kind: "photo" }> }) {
+function PhotoBubble({ message, seen }: { message: Extract<Message, { kind: "photo" }>; seen: boolean }) {
   const [fullScreen, setFullScreen] = useState(false);
 
   return (
@@ -69,7 +86,7 @@ function PhotoBubble({ message }: { message: Extract<Message, { kind: "photo" }>
         accessibilityLabel={message.fromMe ? "Photo you sent" : "Photo you received"}
       >
         <ChatPhoto url={message.photoUrl} style={styles.photo} />
-        <Text style={styles.photoTime}>{messageTime(new Date(message.sentAt))}</Text>
+        <MessageTime message={message} seen={seen} on="photo" />
       </Pressable>
 
       <Modal visible={fullScreen} transparent animationType="fade" onRequestClose={() => setFullScreen(false)}>
@@ -81,11 +98,12 @@ function PhotoBubble({ message }: { message: Extract<Message, { kind: "photo" }>
   );
 }
 
-export function MessageBubble({ message }: { message: Message }) {
+// seen: the other person has opened the chat since this was sent (only matters for my messages)
+export function MessageBubble({ message, seen = false }: { message: Message; seen?: boolean }) {
   const mine = message.fromMe;
 
-  if (message.kind === "contact") return <ContactCard message={message} />;
-  if (message.kind === "photo") return <PhotoBubble message={message} />;
+  if (message.kind === "contact") return <ContactCard message={message} seen={seen} />;
+  if (message.kind === "photo") return <PhotoBubble message={message} seen={seen} />;
 
   if (message.kind === "payment") {
     const Icon = mine ? ArrowUpRight : ArrowDownLeft;
@@ -98,7 +116,7 @@ export function MessageBubble({ message }: { message: Message }) {
           <Text style={styles.paymentLabel}>{mine ? "You sent" : "You received"}</Text>
         </View>
         <Text style={styles.paymentAmount}>{formatRWF(message.amount)}</Text>
-        <Text style={styles.time}>{messageTime(new Date(message.sentAt))}</Text>
+        <MessageTime message={message} seen={seen} />
       </View>
     );
   }
@@ -126,7 +144,7 @@ export function MessageBubble({ message }: { message: Message }) {
             <Text style={styles.payText}>Pay</Text>
           </Pressable>
         ) : null}
-        <Text style={styles.time}>{messageTime(new Date(message.sentAt))}</Text>
+        <MessageTime message={message} seen={seen} />
       </View>
     );
   }
@@ -134,7 +152,7 @@ export function MessageBubble({ message }: { message: Message }) {
   return (
     <View style={[styles.bubble, mine ? styles.mine : styles.theirs]}>
       <Text style={[styles.text, mine && styles.textMine]}>{message.text}</Text>
-      <Text style={[styles.time, mine && styles.timeMine]}>{messageTime(new Date(message.sentAt))}</Text>
+      <MessageTime message={message} seen={seen} on={mine ? "primary" : undefined} />
     </View>
   );
 }
@@ -151,7 +169,9 @@ const styles = StyleSheet.create({
   },
   text: { fontFamily: fonts.regular, fontSize: 15, color: colors.text },
   textMine: { color: "white" },
-  time: { fontFamily: fonts.regular, fontSize: 11, color: colors.textMuted, alignSelf: "flex-end" },
+  timeRow: { flexDirection: "row", alignItems: "center", gap: 4, alignSelf: "flex-end" },
+  time: { fontFamily: fonts.regular, fontSize: 11, color: colors.textMuted },
+  timeOnPhoto: { color: "white" },
   timeMine: { color: colors.onPrimaryMuted },
   payment: {
     width: 220,
@@ -198,9 +218,6 @@ const styles = StyleSheet.create({
     paddingVertical: 2,
     borderRadius: radius.sm,
     backgroundColor: "rgba(0,0,0,0.45)",
-    fontFamily: fonts.regular,
-    fontSize: 11,
-    color: "white",
   },
   viewer: { flex: 1, backgroundColor: "black", justifyContent: "center" },
   viewerPhoto: { width: "100%", height: "80%", backgroundColor: "black" },
