@@ -174,6 +174,32 @@ meRouter.get("/lookup", async (req, res) => {
   res.json({ onWalletChat: rows.length > 0 });
 });
 
+// POST /me/suggestions  { "phones": ["0788 555 123", "+250 788 999 001", …] }  → { "onWalletChat": ["0788555123"] }
+// "People you may know": the app sends the numbers in your phone's contacts, and we answer which of
+// them have a WalletChat account and aren't in your chats yet. The numbers are only compared, never
+// saved, and the answer has no names: the app shows each person under the name YOU saved them with.
+const MAX_SUGGESTION_PHONES = 2_000;
+meRouter.post("/suggestions", async (req, res) => {
+  const phones: unknown = req.body?.phones;
+  if (!Array.isArray(phones)) return res.status(400).json({ error: "phones must be a list of numbers" });
+  if (phones.length > MAX_SUGGESTION_PHONES) {
+    return res.status(400).json({ error: `Send at most ${MAX_SUGGESTION_PHONES} numbers at once.` });
+  }
+
+  const normalized = [...new Set(phones.map(normalizePhone).filter((phone) => phone !== null))];
+  if (normalized.length === 0) return res.json({ onWalletChat: [] });
+
+  const { rows } = await pool.query<{ phone: string }>(
+    `SELECT u.phone FROM users u
+      WHERE u.phone = ANY($1)
+        AND u.clerk_user_id IS NOT NULL -- has an account (not just someone waiting to be invited)
+        AND u.id <> $2                  -- not me
+        AND NOT EXISTS (SELECT 1 FROM contacts c WHERE c.owner_id = $2 AND c.contact_id = u.id)`,
+    [normalized, req.user.id],
+  );
+  res.json({ onWalletChat: rows.map((row) => row.phone) });
+});
+
 // POST /me/contacts  { "name": "Diane Mukamana", "phone": "0788 555 123" }
 // If someone already uses that number, they are added; otherwise a row is created for them,
 // waiting for them to sign up (clerk_user_id stays NULL until then).

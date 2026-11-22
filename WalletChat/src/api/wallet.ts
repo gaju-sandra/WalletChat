@@ -186,6 +186,16 @@ export async function lookupPhone(phone: string) {
   return onWalletChat;
 }
 
+// Which of these numbers (from the phone's contacts) are on WalletChat and not in my chats yet?
+// Answers only with numbers, in the server's format (e.g. "0788555123"), never names.
+export async function findPeopleOnWalletChat(phones: string[]) {
+  const { onWalletChat } = await api<{ onWalletChat: string[] }>("/me/suggestions", {
+    method: "POST",
+    body: { phones },
+  });
+  return onWalletChat;
+}
+
 export async function createContact(name: string, phone: string) {
   return toContact(await api<ServerContact>("/me/contacts", { method: "POST", body: { name, phone } }));
 }

@@ -49,7 +49,7 @@
       [
         "expo-contacts",
         {
-          "contactsPermission": "WalletChat uses your contacts so you can share one in a chat."
+          "contactsPermission": "WalletChat uses your contacts to show which friends are on WalletChat, and so you can share one in a chat. Numbers are checked, not saved."
         }
       ]
     ],

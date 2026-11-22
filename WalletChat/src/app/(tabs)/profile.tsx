@@ -21,6 +21,7 @@ import { Mail, Phone, Wallet, Pencil, LogOut, Camera, UserPlus, ChevronRight } f
 import { colors, fonts, radius, spacing } from "@/constants/theme";
 import { Avatar } from "@/components/avatar";
 import { SectionHeader } from "@/components/section-header";
+import { PeopleYouMayKnow } from "@/components/people-you-may-know";
 import { SettingsRow } from "@/components/settings-row";
 import { useWallet } from "@/context/wallet";
 import { firstName, formatRWF, initialsOf } from "@/utils/formats";
@@ -253,6 +254,8 @@ export default function ProfileScreen() {
                 />
               </Pressable>
             </View>
+            {/* Friends from your phone's contacts who are already on WalletChat */}
+            <PeopleYouMayKnow />
           </View>
 
           <Pressable style={styles.signOutButton} onPress={() => signOut()} accessibilityRole="button">
