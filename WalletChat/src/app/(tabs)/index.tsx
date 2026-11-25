@@ -6,6 +6,7 @@ import { Bell, ArrowUpRight, ArrowDownLeft, Plus, Eye, EyeOff } from "lucide-rea
 import { colors, spacing, radius, fonts } from "@/constants/theme";
 import { Avatar } from "@/components/avatar";
 import { SectionHeader } from "@/components/section-header";
+import { PeopleYouMayKnow } from "@/components/people-you-may-know";
 import { TransactionRow } from "@/components/transaction-row";
 import { useWallet } from "@/context/wallet";
 import { usePullToRefresh } from "@/components/pull-to-refresh";
@@ -108,7 +109,6 @@ export default function HomeScreen() {
         </View>
 
         {/* Quick send */}
-                {/* Quick send */}
         <View style={styles.section}>
           <SectionHeader title="Quick send" actionLabel="See all" onPressAction={() => router.push("/chats")} />
           <ScrollView
@@ -144,6 +144,9 @@ export default function HomeScreen() {
             ))}
           </ScrollView>
         </View>
+
+        {/* People you may know: friends from your phone's contacts who are on WalletChat */}
+        <PeopleYouMayKnow />
 
         {/* Recent activity */}
         <View style={styles.section}>

@@ -6,6 +6,7 @@ import { Users } from "lucide-react-native";
 import { colors, fonts, radius, spacing } from "@/constants/theme";
 import { Avatar } from "@/components/avatar";
 import { PrimaryButton } from "@/components/primary-button";
+import { SectionHeader } from "@/components/section-header";
 import { useWallet } from "@/context/wallet";
 import { findPeopleOnWalletChat } from "@/api/wallet";
 import { initialsOf } from "@/utils/formats";
@@ -34,9 +35,9 @@ async function findPeopleYouMayKnow(): Promise<Person[]> {
   });
 }
 
-// "People you may know", on Profile under "Invite friends".
+// "People you may know", on Home under "Quick send".
 //   Not asked yet → a card explaining it, with a button (we never ask for your contacts out of nowhere)
-//   Allowed       → the list, checked straight away when Profile opens
+//   Allowed       → the list, checked straight away when Home opens
 //   Refused / web → nothing: you can still add people with the + button
 export function PeopleYouMayKnow() {
   const { contacts, addContact } = useWallet();
@@ -73,7 +74,7 @@ export function PeopleYouMayKnow() {
       },
       () => setAccess("refused"),
     );
-  }, []); // only once, when Profile opens
+  }, []); // only once, when Home opens
 
   async function handleAllow() {
     const { granted } = await Contacts.requestPermissionsAsync();
@@ -123,7 +124,7 @@ export function PeopleYouMayKnow() {
 
   return (
     <View style={styles.section}>
-      <Text style={styles.sectionTitle}>People you may know</Text>
+      <SectionHeader title="People you may know" />
       {error ? <Text style={styles.error}>{error}</Text> : null}
       {suggestions.length > 0 ? (
         <View style={styles.listCard}>
@@ -171,20 +172,13 @@ const styles = StyleSheet.create({
   cardText: { fontFamily: fonts.regular, fontSize: 14, color: colors.textMuted },
   notNow: { fontFamily: fonts.semibold, fontSize: 14, color: colors.textMuted, textAlign: "center" },
   spinner: { marginVertical: spacing.lg },
-  section: { gap: spacing.sm },
+  section: { gap: spacing.md }, // same spacing as the other sections on Home
   listCard: {
     backgroundColor: colors.surface,
     borderRadius: radius.lg,
     borderWidth: 1,
     borderColor: colors.border,
     paddingHorizontal: spacing.lg,
-  },
-  sectionTitle: {
-    fontFamily: fonts.semibold,
-    fontSize: 13,
-    color: colors.textMuted,
-    textTransform: "uppercase",
-    letterSpacing: 0.5,
   },
   error: { fontFamily: fonts.medium, fontSize: 13, color: colors.danger },
   row: { flexDirection: "row", alignItems: "center", gap: spacing.md, paddingVertical: spacing.md },
