@@ -26,6 +26,7 @@ type ServerContact = {
   unread: number;
   added_at: string;
   on_walletchat: boolean;
+  seen_at?: string | null; // only in the contact list (GET /me/contacts)
 };
 type ServerMessage = {
   id: number;
@@ -54,6 +55,7 @@ function toContact(c: ServerContact): Contact {
     imageUrl: c.image_url ?? undefined,
     addedAt: c.added_at,
     onWalletChat: c.on_walletchat,
+    seenAt: c.seen_at ?? undefined,
   };
 }
 
@@ -136,6 +138,20 @@ export function syncProfilePicture() {
   return api("/me/picture", { method: "POST" });
 }
 
+// After changing my email on Clerk: the server copies the new, verified address
+export function syncEmail() {
+  return api("/me/email", { method: "POST" });
+}
+
+// This phone's push notification address (see utils/push.ts): save it, or forget it when signing out
+export function savePushToken(token: string) {
+  return api("/me/push-token", { method: "POST", body: { token } });
+}
+
+export function forgetPushToken(token: string) {
+  return api("/me/push-token", { method: "DELETE", body: { token } });
+}
+
 export function sendTransfer(contactId: string, amount: number) {
   return api("/transfers", { method: "POST", body: { toUserId: Number(contactId), amount } });
 }
@@ -169,6 +185,16 @@ export function sendTopUp(amount: number, source: string) {
 // Does someone with a WalletChat account use this number? (asked before adding them)
 export async function lookupPhone(phone: string) {
   const { onWalletChat } = await api<{ onWalletChat: boolean }>(`/me/lookup?phone=${encodeURIComponent(phone)}`);
+  return onWalletChat;
+}
+
+// Which of these numbers (from the phone's contacts) are on WalletChat and not in my chats yet?
+// Answers only with numbers, in the server's format (e.g. "0788555123"), never names.
+export async function findPeopleOnWalletChat(phones: string[]) {
+  const { onWalletChat } = await api<{ onWalletChat: string[] }>("/me/suggestions", {
+    method: "POST",
+    body: { phones },
+  });
   return onWalletChat;
 }
 

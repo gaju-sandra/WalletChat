@@ -11,6 +11,7 @@ export type Contact = {
   imageUrl?: string; // their profile picture; without one the app shows their initials
   addedAt?: string; // ISO date, set when you add someone (so a new chat can go to the top)
   onWalletChat: boolean; // false = saved by phone number but no account yet, so money can't be sent to them
+  seenAt?: string; // ISO date: when they last opened our chat. My messages sent before it are seen (✓✓)
 };
 
 export type Transaction = {

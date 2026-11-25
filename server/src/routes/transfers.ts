@@ -1,5 +1,7 @@
 import { Router } from "express";
 import { pool } from "../db.ts";
+import { notifyChanged } from "../live.ts";
+import { sendPush } from "../push.ts";
 
 export const transfersRouter = Router();
 
@@ -56,10 +58,10 @@ transfersRouter.post("/", async (req, res) => {
     await client.query("UPDATE users SET balance = balance + $1 WHERE id = $2", [amount, receiver.id]);
 
     await client.query(
-      `INSERT INTO transactions (user_id, title, subtitle, amount, category) VALUES
-         ($1, $2, 'Sent in chat',     $3, 'transfer'),
-         ($4, $5, 'Received in chat', $6, 'transfer')`,
-      [sender.id, receiver.name, -amount, receiver.id, sender.name, amount],
+      `INSERT INTO transactions (user_id, title, subtitle, amount_in, amount_out, category) VALUES
+         ($1, $2, 'Sent in chat',     0,  $3, 'transfer'),
+         ($4, $5, 'Received in chat', $3, 0,  'transfer')`,
+      [sender.id, receiver.name, amount, receiver.id, sender.name],
     );
 
     const { rows: messageRows } = await client.query(
@@ -77,6 +79,14 @@ transfersRouter.post("/", async (req, res) => {
 
     await client.query("COMMIT");
     res.status(201).json({ message: messageRows[0], senderBalance: sender.balance - amount });
+
+    // Both balances changed: both apps reload now, and the receiver gets a notification
+    notifyChanged([sender.id, receiver.id]);
+    void sendPush(receiver.id, {
+      title: sender.name,
+      body: `Sent you RWF ${amount.toLocaleString("en-US")}`,
+      data: { chatId: String(sender.id) },
+    });
   } catch (error) {
     await client.query("ROLLBACK"); // undo everything done since BEGIN
     throw error; // the error handler in index.ts turns this into a 500 response

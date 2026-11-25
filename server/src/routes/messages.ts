@@ -5,8 +5,27 @@ import { Router } from "express";
 import { pool } from "../db.ts";
 import { normalizePhone } from "../phone.ts";
 import { isForeignKeyError } from "../errors.ts";
+import { notifyChanged } from "../live.ts";
+import { sendPush } from "../push.ts";
 
 export const messagesRouter = Router();
+
+const formatRwf = (amount: number) => `RWF ${amount.toLocaleString("en-US")}`;
+
+// What the receiver's notification says, e.g. "Diane: Hi!" or "Diane: Requested RWF 3,000"
+function previewOf(kind: string, text?: string, amount?: number) {
+  if (kind === "text") return text!.length > 150 ? `${text!.slice(0, 150)}…` : text!;
+  if (kind === "request") return `Requested ${formatRwf(amount!)}`;
+  if (kind === "contact") return "Shared a contact";
+  return "📷 Photo";
+}
+
+// After a message is saved: both apps reload now (live), and the receiver also gets a notification
+// in case WalletChat is closed. Tapping it opens the chat with the sender.
+function announce(sender: { id: number; name: string }, receiverId: number, preview: string) {
+  notifyChanged([sender.id, receiverId]);
+  void sendPush(receiverId, { title: sender.name, body: preview, data: { chatId: String(sender.id) } });
+}
 
 // Where chat photos are saved: server/uploads/
 const UPLOADS_DIR = path.resolve(import.meta.dirname, "../../uploads");
@@ -70,6 +89,7 @@ messagesRouter.post("/photo", async (req, res) => {
   try {
     const message = await savePhotoMessage(senderId, receiverId, fileName);
     res.status(201).json(message);
+    announce(req.user, receiverId, previewOf("photo"));
   } catch (error) {
     await unlink(path.join(UPLOADS_DIR, fileName)).catch(() => {}); // no message, so no file either
     if (isForeignKeyError(error)) return res.status(404).json({ error: "Receiver not found" });
@@ -148,6 +168,7 @@ messagesRouter.post("/", async (req, res) => {
     ]);
     await client.query("COMMIT");
     res.status(201).json(rows[0]);
+    announce(req.user, receiverId, previewOf(kind, text?.trim(), amount));
   } catch (error) {
     await client.query("ROLLBACK");
     // 23503 = foreign key violation: senderId or receiverId isn't a real user

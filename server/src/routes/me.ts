@@ -1,8 +1,11 @@
 import { Router } from "express";
+import pg from "pg";
 import { clerkClient, getAuth } from "@clerk/express";
 import { pool } from "../db.ts";
 import { normalizePhone } from "../phone.ts";
 import { requireUser } from "../auth.ts";
+import { notifyChanged } from "../live.ts";
+import { isPushToken } from "../push.ts";
 
 // Everything here is about "me": the signed-in person. There is no user id in the address any more,
 // so nobody can read or change someone else's wallet by changing a number.
@@ -96,20 +99,67 @@ meRouter.post("/picture", async (req, res) => {
   res.json(rows[0]);
 });
 
+// POST /me/email → copy my email from Clerk (call it after changing it)
+// The app changes the email on Clerk, which checks it with a code. The server then reads it from Clerk
+// instead of taking it from the app, so nobody can save an email they didn't prove is theirs.
+meRouter.post("/email", async (req, res) => {
+  const { userId } = getAuth(req);
+  if (!userId) return res.status(401).json({ error: "Please sign in.", code: "signed_out" });
+  const clerkUser = await clerkClient.users.getUser(userId);
+  const email = clerkUser.primaryEmailAddress?.emailAddress ?? null;
+  try {
+    const { rows } = await pool.query(`UPDATE users SET email = $2 WHERE id = $1 RETURNING ${USER_COLUMNS}`, [
+      req.user.id,
+      email,
+    ]);
+    res.json(rows[0]);
+  } catch (error) {
+    // 23505 = unique violation: another wallet already has this email
+    if (error instanceof pg.DatabaseError && error.code === "23505") {
+      return res.status(409).json({ error: "Another wallet already uses this email." });
+    }
+    throw error;
+  }
+});
+
+// POST /me/push-token  { "token": "ExponentPushToken[…]" }
+// This phone allowed notifications: send mine to it. If someone else was signed in on this phone
+// before, the token moves to me (ON CONFLICT), so their notifications stop arriving on it.
+meRouter.post("/push-token", async (req, res) => {
+  const token = req.body?.token;
+  if (!isPushToken(token)) return res.status(400).json({ error: "That isn't an Expo push token." });
+  await pool.query(
+    `INSERT INTO push_tokens (token, user_id) VALUES ($1, $2)
+     ON CONFLICT (token) DO UPDATE SET user_id = EXCLUDED.user_id, updated_at = now()`,
+    [token, req.user.id],
+  );
+  res.sendStatus(204);
+});
+
+// DELETE /me/push-token  { "token": "ExponentPushToken[…]" }  → signing out: stop notifications on this phone
+meRouter.delete("/push-token", async (req, res) => {
+  const token = req.body?.token;
+  if (!isPushToken(token)) return res.status(400).json({ error: "That isn't an Expo push token." });
+  await pool.query("DELETE FROM push_tokens WHERE token = $1 AND user_id = $2", [token, req.user.id]);
+  res.sendStatus(204);
+});
+
 // GET /me/contacts → my chat list, most recent conversation first
 meRouter.get("/contacts", async (req, res) => {
   const { rows } = await pool.query(
     `SELECT u.id, u.name, u.phone, u.image_url, c.unread, c.added_at,
             u.clerk_user_id IS NOT NULL AS on_walletchat, -- true = they have an account and can use money
+            theirs.read_at AS seen_at, -- when THEY last opened our chat: my messages before it are seen (✓✓)
             -- latest of "when added" and "newest message either way"; GREATEST skips NULLs
             GREATEST(c.added_at, MAX(m.sent_at)) AS last_activity
        FROM contacts c
        JOIN users u ON u.id = c.contact_id
+       LEFT JOIN contacts theirs ON theirs.owner_id = c.contact_id AND theirs.contact_id = c.owner_id
        LEFT JOIN messages m
          ON (m.sender_id = c.owner_id AND m.receiver_id = c.contact_id)
          OR (m.sender_id = c.contact_id AND m.receiver_id = c.owner_id)
       WHERE c.owner_id = $1
-      GROUP BY u.id, c.unread, c.added_at
+      GROUP BY u.id, c.unread, c.added_at, theirs.read_at
       ORDER BY last_activity DESC`,
     [req.user.id],
   );
@@ -124,6 +174,32 @@ meRouter.get("/lookup", async (req, res) => {
   if (!phone) return res.status(400).json({ error: "Enter a valid phone number, e.g. 0788 123 456." });
   const { rows } = await pool.query("SELECT 1 FROM users WHERE phone = $1 AND clerk_user_id IS NOT NULL", [phone]);
   res.json({ onWalletChat: rows.length > 0 });
+});
+
+// POST /me/suggestions  { "phones": ["0788 555 123", "+250 788 999 001", …] }  → { "onWalletChat": ["0788555123"] }
+// "People you may know": the app sends the numbers in your phone's contacts, and we answer which of
+// them have a WalletChat account and aren't in your chats yet. The numbers are only compared, never
+// saved, and the answer has no names: the app shows each person under the name YOU saved them with.
+const MAX_SUGGESTION_PHONES = 2_000;
+meRouter.post("/suggestions", async (req, res) => {
+  const phones: unknown = req.body?.phones;
+  if (!Array.isArray(phones)) return res.status(400).json({ error: "phones must be a list of numbers" });
+  if (phones.length > MAX_SUGGESTION_PHONES) {
+    return res.status(400).json({ error: `Send at most ${MAX_SUGGESTION_PHONES} numbers at once.` });
+  }
+
+  const normalized = [...new Set(phones.map(normalizePhone).filter((phone) => phone !== null))];
+  if (normalized.length === 0) return res.json({ onWalletChat: [] });
+
+  const { rows } = await pool.query<{ phone: string }>(
+    `SELECT u.phone FROM users u
+      WHERE u.phone = ANY($1)
+        AND u.clerk_user_id IS NOT NULL -- has an account (not just someone waiting to be invited)
+        AND u.id <> $2                  -- not me
+        AND NOT EXISTS (SELECT 1 FROM contacts c WHERE c.owner_id = $2 AND c.contact_id = u.id)`,
+    [normalized, req.user.id],
+  );
+  res.json({ onWalletChat: rows.map((row) => row.phone) });
 });
 
 // POST /me/contacts  { "name": "Diane Mukamana", "phone": "0788 555 123" }
@@ -174,6 +250,7 @@ meRouter.post("/contacts", async (req, res) => {
 
     await client.query("COMMIT");
     res.status(201).json({ ...person, unread: added[0].unread, added_at: added[0].added_at });
+    notifyChanged([person.id]); // the chat with me appears in their list straight away
   } catch (error) {
     await client.query("ROLLBACK");
     throw error;
@@ -188,17 +265,21 @@ meRouter.post("/contacts/:contactId/read", async (req, res) => {
   if (!Number.isInteger(contactId) || contactId <= 0) {
     return res.status(400).json({ error: "contactId must be a positive whole number" });
   }
-  await pool.query("UPDATE contacts SET unread = 0 WHERE owner_id = $1 AND contact_id = $2", [
-    req.user.id,
-    contactId,
-  ]);
+  const { rowCount } = await pool.query(
+    "UPDATE contacts SET unread = 0, read_at = now() WHERE owner_id = $1 AND contact_id = $2",
+    [req.user.id, contactId],
+  );
   res.sendStatus(204); // done, nothing to send back
+  if (rowCount) notifyChanged([contactId]); // their ticks turn ✓✓ straight away
 });
 
 // GET /me/transactions → my money in and out, newest first
+// The database has two columns, amount_in and amount_out, like a bank statement. The app also gets
+// one signed amount (in − out, so money out is minus), which is handy for adding up.
 meRouter.get("/transactions", async (req, res) => {
   const { rows } = await pool.query(
-    `SELECT id, title, subtitle, amount, category, created_at
+    `SELECT id, title, subtitle, category, created_at, amount_in, amount_out,
+            amount_in - amount_out AS amount
        FROM transactions
       WHERE user_id = $1
       ORDER BY created_at DESC

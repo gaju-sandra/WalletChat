@@ -35,15 +35,15 @@ INSERT INTO messages (sender_id, receiver_id, kind, text, amount, sent_at) VALUE
   (4, 1, 'text',    'Sent you the bus fare',                    NULL, now() - interval '1 day' + interval '1 minute'),
   (1, 5, 'text',    'See you tomorrow',                         NULL, now() - interval '4 days');
 
-INSERT INTO transactions (user_id, title, subtitle, amount, category, created_at) VALUES
-  (1, 'Aline Mutoni', 'Sent in chat', -5000,  'transfer',  now() - interval '50 minutes'),
-  (1, 'Salary',       'Income',       180000, 'income',    date_trunc('day', now()) + interval '8 hours'),
-  (1, 'Grace Uwase',  'Received in chat', 600, 'transfer', now() - interval '1 day'),
-  (1, 'Bus fare',     'Transport',    -600,   'transport', now() - interval '1 day'),
-  (1, 'Electricity',  'Bills',        -10000, 'bills',     now() - interval '2 days'),
-  (1, 'Groceries',    'Shopping',     -8500,  'shopping',  now() - interval '3 days'),
-  (1, 'Moto',         'Transport',    -1500,  'transport', now() - interval '4 days'),
-  (1, 'Eric N.',      'Sent in chat', -3000,  'transfer',  now() - interval '5 days'),
-  (1, 'Internet',     'Bills',        -15000, 'bills',     now() - interval '6 days'),
-  (2, 'Sandra Gaju',  'Received in chat', 5000, 'transfer', now() - interval '50 minutes'),
-  (4, 'Sandra Gaju',  'Sent in chat', -600,   'transfer',  now() - interval '1 day');
+INSERT INTO transactions (user_id, title, subtitle, amount_in, amount_out, category, created_at) VALUES
+  (1, 'Aline Mutoni', 'Sent in chat',          0,   5000, 'transfer',  now() - interval '50 minutes'),
+  (1, 'Salary',       'Income',           180000,      0, 'income',    date_trunc('day', now()) + interval '8 hours'),
+  (1, 'Grace Uwase',  'Received in chat',    600,      0, 'transfer',  now() - interval '1 day'),
+  (1, 'Bus fare',     'Transport',             0,    600, 'transport', now() - interval '1 day'),
+  (1, 'Electricity',  'Bills',                 0,  10000, 'bills',     now() - interval '2 days'),
+  (1, 'Groceries',    'Shopping',              0,   8500, 'shopping',  now() - interval '3 days'),
+  (1, 'Moto',         'Transport',             0,   1500, 'transport', now() - interval '4 days'),
+  (1, 'Eric N.',      'Sent in chat',          0,   3000, 'transfer',  now() - interval '5 days'),
+  (1, 'Internet',     'Bills',                 0,  15000, 'bills',     now() - interval '6 days'),
+  (2, 'Sandra Gaju',  'Received in chat',   5000,      0, 'transfer',  now() - interval '50 minutes'),
+  (4, 'Sandra Gaju',  'Sent in chat',          0,    600, 'transfer',  now() - interval '1 day');

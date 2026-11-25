@@ -15,7 +15,7 @@ function Separator() {
 }
 
 function ChatRow({ contact }: { contact: Contact }) {
-  const { messages, unread } = useWallet();
+  const { messages, unread, typing } = useWallet();
 
   const thread = messages.filter((m) => m.contactId === contact.id);
   const last = thread[thread.length - 1];
@@ -32,9 +32,13 @@ function ChatRow({ contact }: { contact: Contact }) {
       <View style={styles.texts}>
         <Text style={styles.name}>{contact.name}</Text>
         {!contact.onWalletChat ? <Text style={styles.notOnApp}>Not on WalletChat yet</Text> : null}
-        <Text style={[styles.message, hasUnread && styles.messageUnread]} numberOfLines={1}>
-          {last ? previewText(last) : "Say hi 👋"}
-        </Text>
+        {typing[contact.id] ? (
+          <Text style={[styles.message, styles.typing]}>typing…</Text>
+        ) : (
+          <Text style={[styles.message, hasUnread && styles.messageUnread]} numberOfLines={1}>
+            {last ? previewText(last) : "Say hi 👋"}
+          </Text>
+        )}
       </View>
 
       <View style={styles.meta}>
@@ -112,6 +116,7 @@ const styles = StyleSheet.create({
   notOnApp: { fontFamily: fonts.medium, fontSize: 12, color: colors.textMuted },
   message: { fontFamily: fonts.regular, fontSize: 13, color: colors.textMuted },
   messageUnread: { fontFamily: fonts.medium, color: colors.text },
+  typing: { fontFamily: fonts.medium, color: colors.primary },
   meta: { alignItems: "flex-end", gap: 6 },
   time: { fontFamily: fonts.regular, fontSize: 12, color: colors.textMuted },
   timeUnread: { fontFamily: fonts.semibold, color: colors.primary },

@@ -30,7 +30,7 @@ topUpsRouter.post("/", async (req, res) => {
       return res.status(404).json({ error: "User not found" });
     }
     await client.query(
-      "INSERT INTO transactions (user_id, title, subtitle, amount, category) VALUES ($1, 'Top up', $2, $3, 'income')",
+      "INSERT INTO transactions (user_id, title, subtitle, amount_in, category) VALUES ($1, 'Top up', $2, $3, 'income')",
       [userId, source, amount],
     );
     await client.query("COMMIT");
