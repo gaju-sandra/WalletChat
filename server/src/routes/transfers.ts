@@ -58,10 +58,10 @@ transfersRouter.post("/", async (req, res) => {
     await client.query("UPDATE users SET balance = balance + $1 WHERE id = $2", [amount, receiver.id]);
 
     await client.query(
-      `INSERT INTO transactions (user_id, title, subtitle, amount, category) VALUES
-         ($1, $2, 'Sent in chat',     $3, 'transfer'),
-         ($4, $5, 'Received in chat', $6, 'transfer')`,
-      [sender.id, receiver.name, -amount, receiver.id, sender.name, amount],
+      `INSERT INTO transactions (user_id, title, subtitle, amount_in, amount_out, category) VALUES
+         ($1, $2, 'Sent in chat',     0,  $3, 'transfer'),
+         ($4, $5, 'Received in chat', $3, 0,  'transfer')`,
+      [sender.id, receiver.name, amount, receiver.id, sender.name],
     );
 
     const { rows: messageRows } = await client.query(

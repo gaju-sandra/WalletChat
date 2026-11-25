@@ -274,9 +274,12 @@ meRouter.post("/contacts/:contactId/read", async (req, res) => {
 });
 
 // GET /me/transactions → my money in and out, newest first
+// The database has two columns, amount_in and amount_out, like a bank statement. The app also gets
+// one signed amount (in − out, so money out is minus), which is handy for adding up.
 meRouter.get("/transactions", async (req, res) => {
   const { rows } = await pool.query(
-    `SELECT id, title, subtitle, amount, category, created_at
+    `SELECT id, title, subtitle, category, created_at, amount_in, amount_out,
+            amount_in - amount_out AS amount
        FROM transactions
       WHERE user_id = $1
       ORDER BY created_at DESC
